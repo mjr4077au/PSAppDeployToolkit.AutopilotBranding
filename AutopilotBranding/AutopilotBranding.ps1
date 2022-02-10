@@ -124,9 +124,9 @@ function Import-CustomDesktopTheme
 	Mkdir "$env:WinDir\web\wallpaper\Autopilot" -Force | Out-Null
 	Copy-Item "$PSScriptRoot\Autopilot.jpg" "$env:WinDir\web\wallpaper\Autopilot\Autopilot.jpg" -Force
 	Write-Host "Setting Autopilot theme as the new user default"
-	reg.exe load HKLM\TempUser "$env:SystemDrive\Users\Default\NTUSER.DAT" | Out-Host
-	reg.exe add "HKLM\TempUser\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes" /v InstallTheme /t REG_EXPAND_SZ /d "%SystemRoot%\resources\OEM Themes\Autopilot.theme" /f | Out-Host
-	reg.exe unload HKLM\TempUser | Out-Host
+	[System.Void](reg.exe load HKLM\TempUser "$env:SystemDrive\Users\Default\NTUSER.DAT" 2>&1)
+	[System.Void](reg.exe add "HKLM\TempUser\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes" /v InstallTheme /t REG_EXPAND_SZ /d "%SystemRoot%\resources\OEM Themes\Autopilot.theme" /f 2>&1)
+	[System.Void](reg.exe unload HKLM\TempUser 2>&1)
 }
 
 
@@ -209,10 +209,10 @@ function Install-OneDriveMachineWide
 function Disable-EdgeDesktopShortcut
 {
 	Write-Host "Turning off (old) Edge desktop shortcut"
-	reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" /v DisableEdgeDesktopShortcutCreation /t REG_DWORD /d 1 /f /reg:64 | Out-Host
+	[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" /v DisableEdgeDesktopShortcutCreation /t REG_DWORD /d 1 /f /reg:64 2>&1)
 
 	Write-Host "Turning off Edge desktop icon"
-	reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\EdgeUpdate" /v "CreateDesktopShortcutDefault" /t REG_DWORD /d 0 /f /reg:64 | Out-Host
+	[System.Void](reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\EdgeUpdate" /v "CreateDesktopShortcutDefault" /t REG_DWORD /d 0 /f /reg:64 2>&1)
 }
 
 
@@ -242,7 +242,7 @@ function Import-LanguageSettings
 	if ($config.Config.Language)
 	{
 		Write-Host "Configuring language using: $($config.Config.Language)"
-		& $env:SystemRoot\System32\control.exe "intl.cpl,,/f:`"$PSScriptRoot\$($config.Config.Language)`""
+		control.exe "intl.cpl,,/f:`"$PSScriptRoot\$($config.Config.Language)`"" 2>&1
 	}
 }
 
@@ -286,7 +286,7 @@ function Import-DefaultAppAssociations
 	if ($config.Config.DefaultApps)
 	{
 		Write-Host "Setting default apps: $($config.Config.DefaultApps)"
-		& Dism.exe /Online /Import-DefaultAppAssociations:`"$PSScriptRoot\$($config.Config.DefaultApps)`"
+		Dism.exe /Online /Import-DefaultAppAssociations:`"$PSScriptRoot\$($config.Config.DefaultApps)`" 2>&1
 	}
 }
 
@@ -300,8 +300,8 @@ function Import-DefaultAppAssociations
 function Set-RegistrationInfo
 {
 	Write-Host "Configuring registered user information"
-	reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v RegisteredOwner /t REG_SZ /d "$($config.Config.RegisteredOwner)" /f /reg:64 | Out-Host
-	reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v RegisteredOrganization /t REG_SZ /d "$($config.Config.RegisteredOrganization)" /f /reg:64 | Out-Host
+	[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v RegisteredOwner /t REG_SZ /d "$($config.Config.RegisteredOwner)" /f /reg:64 2>&1)
+	[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v RegisteredOrganization /t REG_SZ /d "$($config.Config.RegisteredOrganization)" /f /reg:64 2>&1)
 }
 
 
@@ -316,13 +316,13 @@ function Set-OEMInformation
 	if ($config.Config.OEMInfo)
 	{
 		Write-Host "Configuring OEM branding info"
-		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v Manufacturer /t REG_SZ /d "$($config.Config.OEMInfo.Manufacturer)" /f /reg:64 | Out-Host
-		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v Model /t REG_SZ /d "$($config.Config.OEMInfo.Model)" /f /reg:64 | Out-Host
-		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportPhone /t REG_SZ /d "$($config.Config.OEMInfo.SupportPhone)" /f /reg:64 | Out-Host
-		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportHours /t REG_SZ /d "$($config.Config.OEMInfo.SupportHours)" /f /reg:64 | Out-Host
-		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportURL /t REG_SZ /d "$($config.Config.OEMInfo.SupportURL)" /f /reg:64 | Out-Host
+		[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v Manufacturer /t REG_SZ /d "$($config.Config.OEMInfo.Manufacturer)" /f /reg:64 2>&1)
+		[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v Model /t REG_SZ /d "$($config.Config.OEMInfo.Model)" /f /reg:64 2>&1)
+		[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportPhone /t REG_SZ /d "$($config.Config.OEMInfo.SupportPhone)" /f /reg:64 2>&1)
+		[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportHours /t REG_SZ /d "$($config.Config.OEMInfo.SupportHours)" /f /reg:64 2>&1)
+		[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportURL /t REG_SZ /d "$($config.Config.OEMInfo.SupportURL)" /f /reg:64 2>&1)
 		Copy-Item "$PSScriptRoot\$($config.Config.OEMInfo.Logo)" "$env:WinDir\$($config.Config.OEMInfo.Logo)" -Force
-		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v Logo /t REG_SZ /d "$env:WinDir\$($config.Config.OEMInfo.Logo)" /f /reg:64 | Out-Host
+		[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v Logo /t REG_SZ /d "$env:WinDir\$($config.Config.OEMInfo.Logo)" /f /reg:64 2>&1)
 	}
 }
 
@@ -354,7 +354,7 @@ function Enable-UserExperienceVirtualization
 function Disable-NetworkLocationFlyout
 {
 	Write-Host "Turning off network location fly-out"
-	reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff" /f
+	[System.Void](reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff" /f 2>&1)
 }
 
 
@@ -385,7 +385,7 @@ if ("$env:PROCESSOR_ARCHITEW6432" -ne "ARM64")
 {
     if (Test-Path "$($env:WINDIR)\SysNative\WindowsPowerShell\v1.0\powershell.exe")
     {
-        & "$($env:WINDIR)\SysNative\WindowsPowerShell\v1.0\powershell.exe" -ExecutionPolicy bypass -NoProfile -File "$PSCommandPath"
+        & "$($env:WINDIR)\SysNative\WindowsPowerShell\v1.0\powershell.exe" -ExecutionPolicy bypass -NoProfile -File "$PSCommandPath" 2>&1
         Exit $lastexitcode
     }
 }
