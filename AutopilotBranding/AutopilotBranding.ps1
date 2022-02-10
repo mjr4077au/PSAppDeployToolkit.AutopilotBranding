@@ -101,11 +101,11 @@ function Import-CustomStartLayout
 	$ci = Get-ComputerInfo
 	if ($ci.OsBuildNumber -le 22000) {
 		Write-Host "Importing layout: $PSScriptRoot\Layout.xml"
-		Copy-Item "$PSScriptRoot\Layout.xml" "C:\Users\Default\AppData\Local\Microsoft\Windows\Shell\LayoutModification.xml" -Force
+		Copy-Item "$PSScriptRoot\Layout.xml" "$env:SystemDrive\Users\Default\AppData\Local\Microsoft\Windows\Shell\LayoutModification.xml" -Force
 	} else {
 		Write-Host "Importing layout: $PSScriptRoot\Start2.bin"
 		MkDir -Path "C:\Users\Default\AppData\Local\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState" -Force -ErrorAction SilentlyContinue
-		Copy-Item "$PSScriptRoot\Start2.bin" "C:\Users\Default\AppData\Local\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState\Start2.bin" -Force
+		Copy-Item "$PSScriptRoot\Start2.bin" "$env:SystemDrive\Users\Default\AppData\Local\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState\Start2.bin" -Force
 	}
 }
 
@@ -119,12 +119,12 @@ function Import-CustomStartLayout
 function Import-CustomDesktopTheme
 {
 	Write-Host "Setting up Autopilot theme"
-	Mkdir "C:\Windows\Resources\OEM Themes" -Force | Out-Null
-	Copy-Item "$PSScriptRoot\Autopilot.theme" "C:\Windows\Resources\OEM Themes\Autopilot.theme" -Force
-	Mkdir "C:\Windows\web\wallpaper\Autopilot" -Force | Out-Null
-	Copy-Item "$PSScriptRoot\Autopilot.jpg" "C:\Windows\web\wallpaper\Autopilot\Autopilot.jpg" -Force
+	Mkdir "$env:WinDir\Resources\OEM Themes" -Force | Out-Null
+	Copy-Item "$PSScriptRoot\Autopilot.theme" "$env:WinDir\Resources\OEM Themes\Autopilot.theme" -Force
+	Mkdir "$env:WinDir\web\wallpaper\Autopilot" -Force | Out-Null
+	Copy-Item "$PSScriptRoot\Autopilot.jpg" "$env:WinDir\web\wallpaper\Autopilot\Autopilot.jpg" -Force
 	Write-Host "Setting Autopilot theme as the new user default"
-	reg.exe load HKLM\TempUser "C:\Users\Default\NTUSER.DAT" | Out-Host
+	reg.exe load HKLM\TempUser "$env:SystemDrive\Users\Default\NTUSER.DAT" | Out-Host
 	reg.exe add "HKLM\TempUser\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes" /v InstallTheme /t REG_EXPAND_SZ /d "%SystemRoot%\resources\OEM Themes\Autopilot.theme" /f | Out-Host
 	reg.exe unload HKLM\TempUser | Out-Host
 }
@@ -321,8 +321,8 @@ function Set-OEMInformation
 		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportPhone /t REG_SZ /d "$($config.Config.OEMInfo.SupportPhone)" /f /reg:64 | Out-Host
 		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportHours /t REG_SZ /d "$($config.Config.OEMInfo.SupportHours)" /f /reg:64 | Out-Host
 		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportURL /t REG_SZ /d "$($config.Config.OEMInfo.SupportURL)" /f /reg:64 | Out-Host
-		Copy-Item "$PSScriptRoot\$($config.Config.OEMInfo.Logo)" "C:\Windows\$($config.Config.OEMInfo.Logo)" -Force
-		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v Logo /t REG_SZ /d "C:\Windows\$($config.Config.OEMInfo.Logo)" /f /reg:64 | Out-Host
+		Copy-Item "$PSScriptRoot\$($config.Config.OEMInfo.Logo)" "$env:WinDir\$($config.Config.OEMInfo.Logo)" -Force
+		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v Logo /t REG_SZ /d "$env:WinDir\$($config.Config.OEMInfo.Logo)" /f /reg:64 | Out-Host
 	}
 }
 
