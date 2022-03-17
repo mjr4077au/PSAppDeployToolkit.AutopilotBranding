@@ -1,3 +1,45 @@
+
+<#PSScriptInfo
+
+.VERSION 1.14
+
+.GUID dd1fb415-b54e-4773-938c-5c575c335bbd
+
+.AUTHOR Michael Neihaus
+
+.COMPANYNAME Out of Office Hours
+
+.COPYRIGHT N/A
+
+.TAGS
+
+.LICENSEURI https://github.com/mtniehaus/AutopilotBranding/blob/master/LICENSE
+
+.PROJECTURI https://github.com/mtniehaus/AutopilotBranding
+
+.ICONURI
+
+.EXTERNALMODULEDEPENDENCIES 
+
+.REQUIREDSCRIPTS
+
+.EXTERNALSCRIPTDEPENDENCIES
+
+.RELEASENOTES
+
+
+.PRIVATEDATA
+
+#>
+
+<# 
+
+.DESCRIPTION 
+Script to customise Windows 10 devices via Windows Autopilot (although there's no reason it can't be used with other deployment processes, e.g. MDT or ConfigMgr).
+
+#> 
+Param()
+
 # If we are running as a 32-bit process on an x64 system, re-launch as a 64-bit process
 if ("$env:PROCESSOR_ARCHITEW6432" -ne "ARM64")
 {
