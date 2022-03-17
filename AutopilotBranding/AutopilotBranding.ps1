@@ -238,8 +238,8 @@ function Install-OneDriveMachineWide
 
 function Disable-EdgeDesktopShortcut
 {
-	[System.Void](reg.exe ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" /v DisableEdgeDesktopShortcutCreation /t REG_DWORD /d 1 /f /reg:64 2>&1)
-	[System.Void](reg.exe ADD "HKLM\SOFTWARE\Policies\Microsoft\EdgeUpdate" /v "CreateDesktopShortcutDefault" /t REG_DWORD /d 0 /f /reg:64 2>&1)
+	[System.Void](reg.exe ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" /v DisableEdgeDesktopShortcutCreation /t REG_DWORD /d 1 /f 2>&1)
+	[System.Void](reg.exe ADD "HKLM\SOFTWARE\Policies\Microsoft\EdgeUpdate" /v "CreateDesktopShortcutDefault" /t REG_DWORD /d 0 /f 2>&1)
 	Write-Host "Successfully disabled creation of Microsoft Edge desktop shortcuts."
 	Write-Host $divider
 }
@@ -352,7 +352,7 @@ function Set-RegistrationInfo
 	if ($config.Config.RegisteredOwner -and $config.Config.RegisteredOrganization)
 	{
 		@('RegisteredOwner', 'RegisteredOrganization') | ForEach-Object {
-			[System.Void](reg.exe ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v $_ /t REG_SZ /d "$($config.Config.($_))" /f /reg:64 2>&1)
+			[System.Void](reg.exe ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v $_ /t REG_SZ /d "$($config.Config.($_))" /f 2>&1)
 		}
 		Write-Host "Successfully configured registered user information."
 		Write-Host $divider
@@ -372,7 +372,7 @@ function Set-OEMInformation
 	{
 		Copy-Item -Source "$PSScriptRoot\$($config.Config.OEMInfo.Logo)" -Destination "$env:WinDir\$($config.Config.OEMInfo.Logo)" -Force
 		@('Manufacturer', 'Model', 'SupportPhone', 'SupportHours', 'SupportURL', 'Logo') | ForEach-Object {
-			[System.Void](reg.exe ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v $_ /t REG_SZ /d "$($config.Config.OEMInfo.($_))" /f /reg:64 2>&1)
+			[System.Void](reg.exe ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v $_ /t REG_SZ /d "$($config.Config.OEMInfo.($_))" /f 2>&1)
 		}
 		Write-Host "Successfully configured OEM branding info."
 		Write-Host $divider
