@@ -46,6 +46,8 @@ Param()
 $ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
 Set-PSDebug -Strict
 Set-StrictMode -Version Latest
+$scrname = 'AutopilotBranding'
+$divider = [System.Text.RegularExpressions.Regex]::Unescape('\u2014') * 75
 
 
 #---------------------------------------------------------------------------
@@ -98,14 +100,16 @@ filter Write-StdErrMessage
 
 function Import-CustomStartLayout
 {
-	$ci = Get-ComputerInfo
-	if ($ci.OsBuildNumber -le 22000) {
-		Write-Host "Importing layout: $PSScriptRoot\Layout.xml"
-		Copy-Item "$PSScriptRoot\Layout.xml" "$env:SystemDrive\Users\Default\AppData\Local\Microsoft\Windows\Shell\LayoutModification.xml" -Force
-	} else {
-		Write-Host "Importing layout: $PSScriptRoot\Start2.bin"
+	if ([System.IO.File]::Exists(($layout = "$PSScriptRoot\Layout.xml")) -and (Get-ComputerInfo).OsBuildNumber -le 22000)
+	{
+		Write-Host "Importing layout: $layout"
+		Copy-Item $layout "$env:SystemDrive\Users\Default\AppData\Local\Microsoft\Windows\Shell\LayoutModification.xml" -Force
+	}
+	else if ([System.IO.File]::Exists(($layout = "$PSScriptRoot\Start2.bin")))
+	{
+		Write-Host "Importing layout: $layout"
 		MkDir -Path "C:\Users\Default\AppData\Local\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState" -Force -ErrorAction SilentlyContinue
-		Copy-Item "$PSScriptRoot\Start2.bin" "$env:SystemDrive\Users\Default\AppData\Local\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState\Start2.bin" -Force
+		Copy-Item $layout "$env:SystemDrive\Users\Default\AppData\Local\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState\Start2.bin" -Force
 	}
 }
 
@@ -118,15 +122,19 @@ function Import-CustomStartLayout
 
 function Import-CustomDesktopTheme
 {
-	Write-Host "Setting up Autopilot theme"
-	Mkdir "$env:WinDir\Resources\OEM Themes" -Force | Out-Null
-	Copy-Item "$PSScriptRoot\Autopilot.theme" "$env:WinDir\Resources\OEM Themes\Autopilot.theme" -Force
-	Mkdir "$env:WinDir\web\wallpaper\Autopilot" -Force | Out-Null
-	Copy-Item "$PSScriptRoot\Autopilot.jpg" "$env:WinDir\web\wallpaper\Autopilot\Autopilot.jpg" -Force
-	Write-Host "Setting Autopilot theme as the new user default"
-	[System.Void](reg.exe load HKLM\TempUser "$env:SystemDrive\Users\Default\NTUSER.DAT" 2>&1)
-	[System.Void](reg.exe add "HKLM\TempUser\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes" /v InstallTheme /t REG_EXPAND_SZ /d "%SystemRoot%\resources\OEM Themes\Autopilot.theme" /f 2>&1)
-	[System.Void](reg.exe unload HKLM\TempUser 2>&1)
+	if ([System.IO.File]::Exists(($theme = "$PSScriptRoot\Autopilot.theme")) -and [System.IO.File]::Exists(($wallpaper = "$PSScriptRoot\Autopilot.jpg")))
+	{
+		# Set up Autopilot theme.
+		Copy-Item -Path $theme -Destination "$([System.IO.Directory]::CreateDirectory("$env:WinDir\Resources\OEM Themes").FullName)\Autopilot.theme" -Force
+		Copy-Item -Path $wallpaper -Destination "$([System.IO.Directory]::CreateDirectory("$env:WinDir\Web\Wallpaper\Autopilot").FullName)\Autopilot.jpg" -Force
+
+		# Configure it to be default in registry.
+		[System.Void](reg.exe LOAD HKLM\TempUser "$env:SystemDrive\Users\Default\NTUSER.DAT" 2>&1)
+		[System.Void](reg.exe ADD "HKLM\TempUser\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes" /v InstallTheme /t REG_EXPAND_SZ /d "%SystemRoot%\Resources\OEM Themes\Autopilot.theme" /f 2>&1)
+		[System.Void](reg.exe UNLOAD HKLM\TempUser 2>&1)
+		Write-Host "Sucessfully deployed Autopilot theme."
+		Write-Host $divider
+	}
 }
 
 
@@ -138,8 +146,12 @@ function Import-CustomDesktopTheme
 
 function Set-CustomTimeZone
 {
-	Write-Host "Setting time zone: $($config.Config.TimeZone)"
-	Set-Timezone -Id $config.Config.TimeZone
+	if ($config.Config.TimeZone)
+	{
+		Set-TimeZone -Id $config.Config.TimeZone
+		Write-Host "Successfully set timezone to '$($config.Config.TimeZone)'."
+		Write-Host $divider
+	}
 }
 
 
@@ -152,9 +164,21 @@ function Set-CustomTimeZone
 function Enable-LocationServices
 {
 	# Enable location services so the time zone will be set automatically (even when skipping the privacy page in OOBE) when an administrator signs in
-	Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" -Name "Value" -Type "String" -Value "Allow" -Force
-	Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Sensor\Overrides\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}" -Name "SensorPermissionState" -Type "DWord" -Value 1 -Force
-	Start-Service -Name "lfsvc" -ErrorAction SilentlyContinue
+	[System.Void](reg.exe ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" /v Value /t REG_SZ /d Allow /f 2>&1)
+	[System.Void](reg.exe ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Sensor\Overrides\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}" /v SensorPermissionState /t REG_DWORD /d 1 /f 2>&1)
+	[System.Void](reg.exe ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" /v LetAppsAccessLocation /t REG_DWORD /d 1 /f 2>&1)
+	
+	# Try to start location services.
+	try
+	{
+		Start-Service -Name lfsvc
+		Write-Host "Successfully enabled location services and started the Geolocation service."
+	}
+	catch
+	{
+		Write-Host "Successfully enabled location services but failed to start the Geolocation service, time may not be set as expected."
+	}
+	Write-Host $divider
 }
 
 
@@ -166,14 +190,19 @@ function Enable-LocationServices
 
 function Remove-ProvisionedApps
 {
-	Write-Host "Removing specified in-box provisioned apps"
-	$apps = Get-AppxProvisionedPackage -online
-	$config.Config.RemoveApps.App | % {
-		$current = $_
-		$apps | ? {$_.DisplayName -eq $current} | % {
-			Write-Host "Removing provisioned app: $current"
-			$_ | Remove-AppxProvisionedPackage -Online | Out-Null
+	if ($config.Config.RemoveApps -and $config.Config.RemoveApps.App)
+	{
+		# Get all provisioned apps we need to remove where they exist.
+		$apps = Get-AppxProvisionedPackage -Online | Where-Object {$config.Config.RemoveApps.App -contains $_.DisplayName}
+		Write-Host "Removing $($apps.Count)/$($config.Config.RemoveApps.App.Count) specified in-box provisioned apps, please wait..."
+
+		# Do removals and advise of success.
+		$apps | ForEach-Object {
+			[System.Void]($_ | Remove-AppxProvisionedPackage -Online)
+			Write-Host "Removed provisioned app '$($_.DisplayName)'."
 		}
+		Write-Host "Successfully removed specified in-box provisioned apps."
+		Write-Host $divider
 	}
 }
 
@@ -188,14 +217,15 @@ function Install-OneDriveMachineWide
 {
 	if ($config.Config.OneDriveSetup)
 	{
-		Write-Host "Downloading OneDriveSetup"
-		$dest = "$($env:TEMP)\OneDriveSetup.exe"
-		$client = new-object System.Net.WebClient
-		$client.DownloadFile($config.Config.OneDriveSetup, $dest)
-		Write-Host "Installing: $dest"
-		$proc = Start-Process $dest -ArgumentList "/allusers" -WindowStyle Hidden -PassThru
-		$proc.WaitForExit()
-		Write-Host "OneDriveSetup exit code: $($proc.ExitCode)"
+		# Commence download.
+		Write-Host "Downloading OneDriveSetup.exe, please wait..."
+		Invoke-WebRequest -UseBasicParsing -Uri $config.Config.OneDriveSetup -OutFile ($dest = "$($env:TEMP)\OneDriveSetup.exe")
+
+		# Commence install.
+		Write-Host "Installing OneDriveSetup.exe, please wait..."
+		cmd.exe /c $dest 2>&1
+		Write-Host "Successfully installed OneDriveSetup.exe with exit code '$LASTEXITCODE'."
+		Write-Host $divider
 	}
 }
 
@@ -208,11 +238,10 @@ function Install-OneDriveMachineWide
 
 function Disable-EdgeDesktopShortcut
 {
-	Write-Host "Turning off (old) Edge desktop shortcut"
-	[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" /v DisableEdgeDesktopShortcutCreation /t REG_DWORD /d 1 /f /reg:64 2>&1)
-
-	Write-Host "Turning off Edge desktop icon"
-	[System.Void](reg.exe add "HKLM\SOFTWARE\Policies\Microsoft\EdgeUpdate" /v "CreateDesktopShortcutDefault" /t REG_DWORD /d 0 /f /reg:64 2>&1)
+	[System.Void](reg.exe ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" /v DisableEdgeDesktopShortcutCreation /t REG_DWORD /d 1 /f /reg:64 2>&1)
+	[System.Void](reg.exe ADD "HKLM\SOFTWARE\Policies\Microsoft\EdgeUpdate" /v "CreateDesktopShortcutDefault" /t REG_DWORD /d 0 /f /reg:64 2>&1)
+	Write-Host "Successfully disabled creation of Microsoft Edge desktop shortcuts."
+	Write-Host $divider
 }
 
 
@@ -224,9 +253,16 @@ function Disable-EdgeDesktopShortcut
 
 function Install-LanguagePacks
 {
-	Get-ChildItem "$PSScriptRoot\LPs" -Filter *.cab | % {
-		Write-Host "Adding language pack: $($_.FullName)"
-		Add-WindowsPackage -Online -NoRestart -PackagePath $_.FullName
+	# Get language packs and store.
+	if ($lps = Get-ChildItem -Path "$PSScriptRoot\LPs\*.cab")
+	{
+		Write-Host "Adding $($lps.Count) language pack$(if ($lps.Count -ne 1) {'s'}), please wait..."
+		$lps.FullName | ForEach-Object {
+			Add-WindowsPackage -Online -NoRestart -PackagePath $_
+			Write-Host "Added language pack '$_'."
+		}
+		Write-Host "Successfully added language pack$(if ($lps.Count -ne 1) {'s'})."
+		Write-Host $divider
 	}
 }
 
@@ -241,8 +277,9 @@ function Import-LanguageSettings
 {
 	if ($config.Config.Language)
 	{
-		Write-Host "Configuring language using: $($config.Config.Language)"
 		control.exe "intl.cpl,,/f:`"$PSScriptRoot\$($config.Config.Language)`"" 2>&1
+		Write-Host "Successfully configured language using '$($config.Config.Language)'."
+		Write-Host $divider
 	}
 }
 
@@ -255,22 +292,34 @@ function Import-LanguageSettings
 
 function Add-WindowsFeatures
 {
-	$currentWU = (Get-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate\AU" -ErrorAction Ignore).UseWuServer
-	if ($currentWU -eq 1)
+	if ($config.Config.AddFeatures -and $config.Config.AddFeatures.Feature)
 	{
-		Write-Host "Turning off WSUS"
-		Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate\AU"  -Name "UseWuServer" -Value 0
-		Restart-Service wuauserv
-	}
-	$config.Config.AddFeatures.Feature | % {
-		Write-Host "Adding Windows feature: $_"
-		Add-WindowsCapability -Online -Name $_
-	}
-	if ($currentWU -eq 1)
-	{
-		Write-Host "Turning on WSUS"
-		Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate\AU"  -Name "UseWuServer" -Value 1
-		Restart-Service wuauserv
+		Write-Host "Adding $($config.Config.AddFeatures.Feature.Count) Windows Feature$(if ($config.Config.AddFeatures.Feature.Count -ne 1) {'s'}), please wait..."
+
+		# Disable WSUS if it's been enforced via GPOs.
+		if (($currentWU = Get-ItemProperty -Path ($path = "HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate\AU") -ErrorAction Ignore | Select-Object -ExpandProperty UseWuServer) -eq 1)
+		{
+			Set-ItemProperty -Path $path -Name UseWuServer -Value 0
+			Restart-Service wuauserv
+			Write-Host "Temporarily disabled WSUS as required to complete Windows Feature deployments."
+		}
+
+		# Install features as required.
+		foreach ($feature in $config.Config.AddFeatures.Feature)
+		{
+			Add-WindowsCapability -Online -Name $feature
+			Write-Host "Added Windows Feature '$_'."
+		}
+
+		# Re-enable WSUS if it was previously enabled.
+		if ($currentWU -eq 1)
+		{
+			Set-ItemProperty -Path $path -Name UseWuServer -Value 1
+			Restart-Service wuauserv
+			Write-Host "Re-enabled temporarily disabled WSUS setup."
+		}
+		Write-Host "Successfully added Windows Feature$(if ($config.Config.AddFeatures.Feature.Count -ne 1) {'s'})."
+		Write-Host $divider
 	}
 }
 
@@ -285,8 +334,9 @@ function Import-DefaultAppAssociations
 {
 	if ($config.Config.DefaultApps)
 	{
-		Write-Host "Setting default apps: $($config.Config.DefaultApps)"
-		Dism.exe /Online /Import-DefaultAppAssociations:`"$PSScriptRoot\$($config.Config.DefaultApps)`" 2>&1
+		dism.exe /Online /Import-DefaultAppAssociations:`"$PSScriptRoot\$($config.Config.DefaultApps)`" 2>&1
+		Write-Host "Successfully set default app associations."
+		Write-Host $divider
 	}
 }
 
@@ -299,9 +349,14 @@ function Import-DefaultAppAssociations
 
 function Set-RegistrationInfo
 {
-	Write-Host "Configuring registered user information"
-	[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v RegisteredOwner /t REG_SZ /d "$($config.Config.RegisteredOwner)" /f /reg:64 2>&1)
-	[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v RegisteredOrganization /t REG_SZ /d "$($config.Config.RegisteredOrganization)" /f /reg:64 2>&1)
+	if ($config.Config.RegisteredOwner -and $config.Config.RegisteredOrganization)
+	{
+		@('RegisteredOwner', 'RegisteredOrganization') | ForEach-Object {
+			[System.Void](reg.exe ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v $_ /t REG_SZ /d "$($config.Config.($_))" /f /reg:64 2>&1)
+		}
+		Write-Host "Successfully configured registered user information."
+		Write-Host $divider
+	}
 }
 
 
@@ -315,14 +370,12 @@ function Set-OEMInformation
 {
 	if ($config.Config.OEMInfo)
 	{
-		Write-Host "Configuring OEM branding info"
-		[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v Manufacturer /t REG_SZ /d "$($config.Config.OEMInfo.Manufacturer)" /f /reg:64 2>&1)
-		[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v Model /t REG_SZ /d "$($config.Config.OEMInfo.Model)" /f /reg:64 2>&1)
-		[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportPhone /t REG_SZ /d "$($config.Config.OEMInfo.SupportPhone)" /f /reg:64 2>&1)
-		[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportHours /t REG_SZ /d "$($config.Config.OEMInfo.SupportHours)" /f /reg:64 2>&1)
-		[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportURL /t REG_SZ /d "$($config.Config.OEMInfo.SupportURL)" /f /reg:64 2>&1)
-		Copy-Item "$PSScriptRoot\$($config.Config.OEMInfo.Logo)" "$env:WinDir\$($config.Config.OEMInfo.Logo)" -Force
-		[System.Void](reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v Logo /t REG_SZ /d "$env:WinDir\$($config.Config.OEMInfo.Logo)" /f /reg:64 2>&1)
+		Copy-Item -Source "$PSScriptRoot\$($config.Config.OEMInfo.Logo)" -Destination "$env:WinDir\$($config.Config.OEMInfo.Logo)" -Force
+		@('Manufacturer', 'Model', 'SupportPhone', 'SupportHours', 'SupportURL', 'Logo') | ForEach-Object {
+			[System.Void](reg.exe ADD "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v $_ /t REG_SZ /d "$($config.Config.OEMInfo.($_))" /f /reg:64 2>&1)
+		}
+		Write-Host "Successfully configured OEM branding info."
+		Write-Host $divider
 	}
 }
 
@@ -335,13 +388,25 @@ function Set-OEMInformation
 
 function Enable-UserExperienceVirtualization
 {
-	Write-Host "Enabling UE-V"
-	Enable-UEV
+	# Do initial setup prior to enablement.
+	Write-Host "Enabling UE-V, please wait..."
 	Set-UevConfiguration -Computer -SettingsStoragePath "%OneDriveCommercial%\UEV" -SyncMethod External -DisableWaitForSyncOnLogon
-	Get-ChildItem "$PSScriptRoot\UEV" -Filter *.xml | % {
-		Write-Host "Registering template: $($_.FullName)"
-		Register-UevTemplate -Path $_.FullName
+
+	# Apply templates if there's any.
+	if ($templates = Get-ChildItem -Path "$PSScriptRoot\UEV\*.xml")
+	{
+		Write-Host "Registering $($templates.Count) template$(if ($templates.Count -ne 1) {'s'}), please wait..."
+		$templates.FullName | ForEach-Object {
+			Register-UevTemplate -Path $_
+			Write-Host "Registered template '$_'."
+		}
+		Write-Host "Successfully registered $($templates.Count) template$(if ($templates.Count -ne 1) {'s'})"
 	}
+
+	# Finally enable the service after setup is complete.
+	Enable-UEV
+	Write-Host "Successfully enabled UE-V."
+	Write-Host $divider
 }
 
 
@@ -353,24 +418,9 @@ function Enable-UserExperienceVirtualization
 
 function Disable-NetworkLocationFlyout
 {
-	Write-Host "Turning off network location fly-out"
-	[System.Void](reg.exe add "HKLM\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff" /f 2>&1)
-}
-
-
-#---------------------------------------------------------------------------
-#
-# Flag to system that Autopilot branding toolkit was installed.
-#
-#---------------------------------------------------------------------------
-
-function Update-SuccessTag
-{
-	if (-not (Test-Path "$($env:ProgramData)\Microsoft\AutopilotBranding"))
-	{
-	    Mkdir "$($env:ProgramData)\Microsoft\AutopilotBranding"
-	}
-	Set-Content -Path "$($env:ProgramData)\Microsoft\AutopilotBranding\AutopilotBranding.ps1.tag" -Value "Installed"
+	[System.Void](reg.exe ADD "HKLM\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff" /f 2>&1)
+	Write-Host "Successfully disabled network location fly-out."
+	Write-Host $divider
 }
 
 
@@ -381,29 +431,30 @@ function Update-SuccessTag
 #---------------------------------------------------------------------------
 
 # If we are running as a 32-bit process on an x64 system, re-launch as a 64-bit process
-if ("$env:PROCESSOR_ARCHITEW6432" -ne "ARM64")
+if (($env:PROCESSOR_ARCHITEW6432 -ne "ARM64") -and [System.IO.File]::Exists(($nativePwsh = "$($env:WINDIR)\SysNative\WindowsPowerShell\v1.0\powershell.exe")))
 {
-    if (Test-Path "$($env:WINDIR)\SysNative\WindowsPowerShell\v1.0\powershell.exe")
-    {
-        & "$($env:WINDIR)\SysNative\WindowsPowerShell\v1.0\powershell.exe" -ExecutionPolicy bypass -NoProfile -File "$PSCommandPath" 2>&1
-        Exit $lastexitcode
-    }
+	& $nativePwsh -ExecutionPolicy Bypass -NoProfile -File $PSCommandPath 2>&1
+	exit $LASTEXITCODE
 }
-
-# Start logging
-Start-Transcript "$($env:ProgramData)\Microsoft\AutopilotBranding\AutopilotBranding.log"
-
-# PREP: Load the Config.xml
-Write-Host "Install folder: $PSScriptRoot"
-Write-Host "Loading configuration: $PSScriptRoot\Config.xml"
-[Xml]$config = Get-Content "$PSScriptRoot\Config.xml"
 
 # Main execution process.
 try
 {
+	# Start logging
+	[System.Console]::WriteLine((Start-Transcript -Path ($logPath = [System.IO.Directory]::CreateDirectory("$($env:ProgramData)\Microsoft\$scrname\$scrname.log").FullName)))
+
+	# PREP: Load the Config.xml
+	Write-Host "$scrname.ps1 1.14"
+	Write-Host "Install folder: $PSScriptRoot"
+	Write-Host "Loading configuration: $($confFile = "$PSScriptRoot\Config.xml")"
+	($config = [System.Xml.XmlDocument]::new()).Load($confFile)
+	Write-Host "Commencing execution, please wait..."
+	Write-Host $divider
+
+	# Perform functions.
 	Import-CustomStartLayout
 	Import-CustomDesktopTheme
-	if ($config.Config.TimeZone) { Set-TimeZone } else { Enable-LocationServices }
+	if ($config.Config.TimeZone) { Set-CustomTimeZone } else { Enable-LocationServices }
 	Remove-ProvisionedApps
 	Install-OneDriveMachineWide
 	Disable-EdgeDesktopShortcut
@@ -415,13 +466,18 @@ try
 	Set-OEMInformation
 	Enable-UserExperienceVirtualization
 	Disable-NetworkLocationFlyout
-	Update-SuccessTag
+
+	# Advise of success.
+	[System.IO.File]::WriteAllText("$($env:ProgramData)\Microsoft\$scrname\$scrname.ps1.tag", 'Installed')
 	$exitCode = 0
+	Write-Host "Successfully deployed $scrname.ps1 and all configured functions as required."
 }
 catch
 {
+	# Advise of failure.
 	$_ | Out-FriendlyErrorMessage | Write-StdErrMessage
-	$exitCode = 1618
+	$exitCode = 1
+	Write-Host "Failed to deploy all configured components of $scrname.ps1, please review log file at '$logPath' for further details."
 }
 finally
 {
