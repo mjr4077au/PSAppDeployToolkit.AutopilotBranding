@@ -100,12 +100,12 @@ function Import-CustomStartLayout
 {
 	$ci = Get-ComputerInfo
 	if ($ci.OsBuildNumber -le 22000) {
-		Write-Host "Importing layout: $($installFolder)Layout.xml"
-		Copy-Item "$($installFolder)Layout.xml" "C:\Users\Default\AppData\Local\Microsoft\Windows\Shell\LayoutModification.xml" -Force
+		Write-Host "Importing layout: $PSScriptRoot\Layout.xml"
+		Copy-Item "$PSScriptRoot\Layout.xml" "C:\Users\Default\AppData\Local\Microsoft\Windows\Shell\LayoutModification.xml" -Force
 	} else {
-		Write-Host "Importing layout: $($installFolder)Start2.bin"
+		Write-Host "Importing layout: $PSScriptRoot\Start2.bin"
 		MkDir -Path "C:\Users\Default\AppData\Local\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState" -Force -ErrorAction SilentlyContinue
-		Copy-Item "$($installFolder)Start2.bin" "C:\Users\Default\AppData\Local\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState\Start2.bin" -Force
+		Copy-Item "$PSScriptRoot\Start2.bin" "C:\Users\Default\AppData\Local\Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState\Start2.bin" -Force
 	}
 }
 
@@ -120,9 +120,9 @@ function Import-CustomDesktopTheme
 {
 	Write-Host "Setting up Autopilot theme"
 	Mkdir "C:\Windows\Resources\OEM Themes" -Force | Out-Null
-	Copy-Item "$installFolder\Autopilot.theme" "C:\Windows\Resources\OEM Themes\Autopilot.theme" -Force
+	Copy-Item "$PSScriptRoot\Autopilot.theme" "C:\Windows\Resources\OEM Themes\Autopilot.theme" -Force
 	Mkdir "C:\Windows\web\wallpaper\Autopilot" -Force | Out-Null
-	Copy-Item "$installFolder\Autopilot.jpg" "C:\Windows\web\wallpaper\Autopilot\Autopilot.jpg" -Force
+	Copy-Item "$PSScriptRoot\Autopilot.jpg" "C:\Windows\web\wallpaper\Autopilot\Autopilot.jpg" -Force
 	Write-Host "Setting Autopilot theme as the new user default"
 	reg.exe load HKLM\TempUser "C:\Users\Default\NTUSER.DAT" | Out-Host
 	reg.exe add "HKLM\TempUser\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes" /v InstallTheme /t REG_EXPAND_SZ /d "%SystemRoot%\resources\OEM Themes\Autopilot.theme" /f | Out-Host
@@ -224,7 +224,7 @@ function Disable-EdgeDesktopShortcut
 
 function Install-LanguagePacks
 {
-	Get-ChildItem "$($installFolder)LPs" -Filter *.cab | % {
+	Get-ChildItem "$PSScriptRoot\LPs" -Filter *.cab | % {
 		Write-Host "Adding language pack: $($_.FullName)"
 		Add-WindowsPackage -Online -NoRestart -PackagePath $_.FullName
 	}
@@ -242,7 +242,7 @@ function Import-LanguageSettings
 	if ($config.Config.Language)
 	{
 		Write-Host "Configuring language using: $($config.Config.Language)"
-		& $env:SystemRoot\System32\control.exe "intl.cpl,,/f:`"$($installFolder)$($config.Config.Language)`""
+		& $env:SystemRoot\System32\control.exe "intl.cpl,,/f:`"$PSScriptRoot\$($config.Config.Language)`""
 	}
 }
 
@@ -286,7 +286,7 @@ function Import-DefaultAppAssociations
 	if ($config.Config.DefaultApps)
 	{
 		Write-Host "Setting default apps: $($config.Config.DefaultApps)"
-		& Dism.exe /Online /Import-DefaultAppAssociations:`"$($installFolder)$($config.Config.DefaultApps)`"
+		& Dism.exe /Online /Import-DefaultAppAssociations:`"$PSScriptRoot\$($config.Config.DefaultApps)`"
 	}
 }
 
@@ -321,7 +321,7 @@ function Set-OEMInformation
 		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportPhone /t REG_SZ /d "$($config.Config.OEMInfo.SupportPhone)" /f /reg:64 | Out-Host
 		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportHours /t REG_SZ /d "$($config.Config.OEMInfo.SupportHours)" /f /reg:64 | Out-Host
 		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v SupportURL /t REG_SZ /d "$($config.Config.OEMInfo.SupportURL)" /f /reg:64 | Out-Host
-		Copy-Item "$installFolder\$($config.Config.OEMInfo.Logo)" "C:\Windows\$($config.Config.OEMInfo.Logo)" -Force
+		Copy-Item "$PSScriptRoot\$($config.Config.OEMInfo.Logo)" "C:\Windows\$($config.Config.OEMInfo.Logo)" -Force
 		reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" /v Logo /t REG_SZ /d "C:\Windows\$($config.Config.OEMInfo.Logo)" /f /reg:64 | Out-Host
 	}
 }
@@ -338,7 +338,7 @@ function Enable-UserExperienceVirtualization
 	Write-Host "Enabling UE-V"
 	Enable-UEV
 	Set-UevConfiguration -Computer -SettingsStoragePath "%OneDriveCommercial%\UEV" -SyncMethod External -DisableWaitForSyncOnLogon
-	Get-ChildItem "$($installFolder)UEV" -Filter *.xml | % {
+	Get-ChildItem "$PSScriptRoot\UEV" -Filter *.xml | % {
 		Write-Host "Registering template: $($_.FullName)"
 		Register-UevTemplate -Path $_.FullName
 	}
@@ -394,10 +394,9 @@ if ("$env:PROCESSOR_ARCHITEW6432" -ne "ARM64")
 Start-Transcript "$($env:ProgramData)\Microsoft\AutopilotBranding\AutopilotBranding.log"
 
 # PREP: Load the Config.xml
-$installFolder = "$PSScriptRoot\"
-Write-Host "Install folder: $installFolder"
-Write-Host "Loading configuration: $($installFolder)Config.xml"
-[Xml]$config = Get-Content "$($installFolder)Config.xml"
+Write-Host "Install folder: $PSScriptRoot"
+Write-Host "Loading configuration: $PSScriptRoot\Config.xml"
+[Xml]$config = Get-Content "$PSScriptRoot\Config.xml"
 
 # Main execution process.
 try
