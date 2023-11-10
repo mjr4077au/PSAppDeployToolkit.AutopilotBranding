@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FullDefaultLayoutTemplate 
+		xmlns="http://schemas.microsoft.com/Start/2014/FullDefaultLayout"
+		xmlns:start="http://schemas.microsoft.com/Start/2014/StartLayout"
+		xmlns:taskbar="http://schemas.microsoft.com/Start/2014/TaskbarLayout"
+		Version="1">
+	<StartLayoutCollection>
+		<StartLayout GroupCellWidth="6">
+			<start:Group Name="Office">
+				<start:DesktopApplicationTile Size="2x2" Column="0" Row="0" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Word.lnk" />
+				<start:DesktopApplicationTile Size="2x2" Column="2" Row="0" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Excel.lnk" />
+				<start:DesktopApplicationTile Size="2x2" Column="4" Row="0" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\PowerPoint.lnk" />
+				<start:DesktopApplicationTile Size="2x2" Column="0" Row="2" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Outlook.lnk" />
+				<start:DesktopApplicationTile Size="2x2" Column="2" Row="2" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\OneDrive.lnk" />
+				<start:DesktopApplicationTile Size="2x2" Column="4" Row="2" DesktopApplicationLinkPath="%APPDATA%\Microsoft\Windows\Start Menu\Programs\Microsoft Teams.lnk" />
+			</start:Group>
+			<start:Group Name="Others">
+				<start:DesktopApplicationTile Size="2x2" Column="0" Row="0" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Microsoft Edge.lnk" />
+				<start:DesktopApplicationTile Size="2x2" Column="2" Row="0" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\SAP Front End\SAP Logon.lnk" />
+				<start:Tile Size="2x2" Column="4" Row="0" AppUserModelID="Microsoft.CompanyPortal_8wekyb3d8bbwe!App" />
+				<start:DesktopApplicationTile Size="2x2" Column="0" Row="2" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\AutoCAD Mechanical 2018 - English\AutoCAD 2018 - English - AutoCAD Mechanical.lnk" />
+				<start:DesktopApplicationTile Size="2x2" Column="2" Row="2" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Autodesk Inventor 2018\Autodesk Inventor Professional 2018 - English.lnk" />
+				<start:DesktopApplicationTile Size="2x2" Column="4" Row="2" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Autodesk Data Management\Autodesk Vault Professional 2018.lnk" />
+			</start:Group>
+		</StartLayout>
+	</StartLayoutCollection>
+	<TaskbarLayoutCollection>
+		<TaskbarLayout>
+			<taskbar:TaskbarPinList>
+				<taskbar:DesktopApp DesktopApplicationLinkPath="%APPDATA%\Microsoft\Windows\Start Menu\Programs\System Tools\File Explorer.lnk" />
+				<taskbar:DesktopApp DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Microsoft Edge.lnk" />
+				<taskbar:DesktopApp DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Word.lnk" />
+				<taskbar:DesktopApp DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Excel.lnk" />
+				<taskbar:DesktopApp DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Outlook.lnk" />
+				<taskbar:DesktopApp DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\SAP Front End\SAP Logon.lnk" />
+				<taskbar:DesktopApp DesktopApplicationLinkPath="%APPDATA%\Microsoft\Windows\Start Menu\Programs\Microsoft Teams.lnk" />
+				<taskbar:DesktopApp DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\AutoCAD Mechanical 2018 - English\AutoCAD 2018 - English - AutoCAD Mechanical.lnk" />
+				<taskbar:DesktopApp DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Autodesk Inventor 2018\Autodesk Inventor Professional 2018 - English.lnk" />
+				<taskbar:DesktopApp DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Autodesk Data Management\Autodesk Vault Professional 2018.lnk" />
+			</taskbar:TaskbarPinList>
+		</TaskbarLayout>
+	</TaskbarLayoutCollection>
+</FullDefaultLayoutTemplate>

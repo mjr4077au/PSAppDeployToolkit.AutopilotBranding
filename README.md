@@ -1,52 +1,97 @@
-# Autopilot Branding
-
-This repository contains a sample PowerShell script that can be packaged into an Intune Win32 app to customize Windows 10 devices via Windows Autopilot
-(although there's no reason it can't be used with other deployment processes, e.g. MDT or ConfigMgr).
+# Install-DesiredStateManagement.ps1
+Inspired by Michael Niehaus' "AutopilotBranding" toolkit, this toolkit is specifically designed to be used to install a set of system baseline defaults for workstations, extending from languages, removal of built-in apps/features, user defaults via Active Setup, and more.
 
 ## Capabilities
-
 These customizations are currently supported:
 
-- Customize start menu layout.  By default it will apply a simple two-icon layout (similiar to the default one on Windows 10 Enterprise 1903).
-- Configure background image.  A custom theme is deployed with a background image; the default user profile is then configured to use this theme.  (Note that this won't work if the user is enabled for Enterprise State Roaming and has previously configured a background image.)
-- Set time zone.  The time zone will be set to the specified time zone name (Pacific Standard Time by default).
-- Remove in-box provisioned apps.  A list of in-box provisioned apps will be removed.
-- Install updated OneDrive client per-machine.  To support the latest OneDrive features, the client will be updated and installed per-machine (instead of the per-user default).
-- Disable the Edge desktop icon.  When using OneDrive Known Folder Move, this can cause duplicate (and unnecessary) shortcuts to be synced.
-- Install language packs.  You can embed language pack CAB files into the MSI (place them into the LPs folder), and each will be automatically installed.  (In a perfect world, these would be pulled from Windows Update, but there's no simple way to do that, hence the need to include these in the MSI.  You can download the language pack ISO from MSDN or VLSC.)
-- Install features on demand (FOD).  Specify a list of features that you want to install, from the list at https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/features-on-demand-non-language-fod.  The needed components will be downloaded from Windows Update automatically and added to the running OS.
-- Configure language settings.  Adding a language pack isn't enough - you have to tell Windows that you want it to be configured for all users.  This is done through an XML file fed to INTL.CPL; customize the file as needed.  (Note this is commented out by default in the Config.xml file.)
-- Configure default apps.  Import a list of file associations (as created by manually configuring the associations that you want and then using "DISM /Online /Export-DefaultAppAssociations:C:\Associations.xml" to export those settings) that should replace the default app associations.  (Note that even though an example is included from a customized Windows 10 1903 image, making IE 11 the default browser, you should replace this file with your own exported version.  Also, do not edit the file that you exported, e.g. to remove entries that you didn't change.)
+- Transfer of content to device. This can be wallpapers, start menu layouts, scripts, or anything you need cached locally.
+- Configuration of Registration Information (Name/Organisation you see when running `winver.exe`).
+- Configuration of OEM Information (Make/Model/Support information in Settings/System Properties).
+- Ability to lock down the system drive to prevent standard users from creating folders.
+- Complete overriding of the start menu layout for Windows 10.
+- Deployment of start menu layout modifications for Windows 10 and 11.
+- Configuration of default application associations.
+- Configure language settings. Adding a language pack isn't enough - you have to tell Windows that you want it to be configured for all users. This is done through an XML file fed to INTL.CPL.
+- Configure background image. A custom theme is deployed with a background image; the default user profile is then configured to use this theme. (Note that this won't work if the user is enabled for Enterprise State Roaming and has previously configured a background image.)
+- Configuration of "Active Setup" items. These are run-once actions that occur before `explorer.exe` starts when a user logs onto a device.
+- Deployment of shortcuts to the system. Supports well-known public folders like Desktop and Start Menu.
+- Deployment of system registry keys/values onto device. For user registry keys, leverage Active Setup.
+- Ability to remove and deprovision AppX packages on system. The toolkit has a whitelist that forbids unsafe removals.
+- Ability to install/remove Windows Capabilities (Features on Demand). Such items are .NET Framework 3.5, Internet Explorer, etc.
+- Ability to enable/disable Windows Features. Such items are Windows PowerShell 2.0 engine, Telnet client, etc.
 
 ## Requirements and Dependencies
+This uses the Microsoft Win32 Content Prep Tool (a.k.a. IntuneWinAppUtil.exe, available from https://github.com/Microsoft/Microsoft-Win32-Content-Prep-Tool) to package the PowerShell script and related files into a .intunewin file that can be uploaded to Intune as a Win32 app.
 
-This uses the Microsoft Win32 Content Prep Tool (a.k.a. IntuneWinAppUtil.exe, available from https://github.com/Microsoft/Microsoft-Win32-Content-Prep-Tool) to package the PowerShell script and related files into a .intunewin file that can be uploaded to Intune as a Win32 app. 
-
-## Building
-
-Run the makeapp.cmd file from a command prompt.  (It will not work if you using Terminal.)
-
-## Using
-
-Add the resulting Win32 app (.intunewin) to Intune.  The installation command line should be:
-
-powershell.exe -noprofile -executionpolicy bypass -file .\AutopilotBranding.ps1
-
-The uninstall command line should be:
-
-cmd.exe /c del %ProgramData%\Microsoft\AutopilotBranding\AutopilotBranding.ps1.tag
-
-The detection rule should look for the existence of this file:
-
-Path: %ProgramData%\Microsoft\AutopilotBranding
-File or filder:  AutopilotBranding.ps1.tag
-
-See https://oofhours.com/2020/05/18/two-for-one-updated-autopilot-branding-and-update-os-scripts/ for more information.
-
-## Change history
-
-2023-09-23: Added logic to handle the Windows 11 Start menu proces using Start2.bin; Windows 10 will continue to use Layout.xml.  Added additional Windows 11 in-box apps to remove.
-
-## Suggestions?
-
-If you have suggestions on other customizations that would be useful, contact me at mniehaus@microsoft.com.
+## Example Config
+An example setup via an XML configuration file would be:
+```XML
+<Config Version="1.0">
+	<Content>
+		<!--Note: If a Source is not specified, the script will assume you've provided data in the destination yourself-->
+		<Source>https://www.mysite.com.au/intune/desiredstate/content.zip</Source>
+		<Destination>%ProgramData%\DesiredStateManagement\Content</Destination>
+		<EnvironmentVariable>DesiredStateContents</EnvironmentVariable>
+	</Content>
+	<RegistrationInfo>
+		<RegisteredOwner>Registered Owner</RegisteredOwner>
+		<RegisteredOrganization>Registered Organisation</RegisteredOrganization>
+	</RegistrationInfo>
+	<OemInformation>
+		<Manufacturer>Contoso</Manufacturer>
+		<Logo>https://www.contoso.com/Contoso.bmp</Logo>
+		<SupportPhone>+1 800-555-1212</SupportPhone>
+		<SupportHours>8am-5pm PST</SupportHours>
+		<SupportURL>http://www.contoso.com</SupportURL>
+	</OemInformation>
+	<SystemDriveLockdown Enabled="1" />
+	<DefaultStartLayout>DefaultLayouts.xml</DefaultStartLayout>
+	<DefaultLayoutModification>
+		<Taskbar>LayoutModification.xml</Taskbar>
+		<StartMenu>LayoutModification.json</StartMenu>
+	</DefaultLayoutModification>
+	<DefaultAppAssociations>DefaultAssociations.xml</DefaultAppAssociations>
+	<LanguageDefaults>LanguageUnattend.xml</LanguageDefaults>
+	<DefaultTheme>Autopilot.theme</DefaultTheme>
+	<ActiveSetup Identifier="User Defaults">
+		<!--Note: Once you set this identifier for your customer, don't ever change it!-->
+		<!--Note: Only increment version numbers if you wish to re-trigger the default on next logon, not necessarily because you made a change!-->
+		<Component Version="1">
+			<Name>Reduce Taskbar Searchbox</Name>
+			<StubPath>reg.exe add HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Search /v SearchboxTaskbarMode /t REG_DWORD /d 1 /f</StubPath>
+		</Component>
+	</ActiveSetup>
+	<SystemShortcuts>
+		<!--Note: For 'IconLocation', please ensure the index of the icon is provided at the end, separated by a comma ("file.ico,0", etc)-->
+		<Shortcut Location="CommonDesktopDirectory" Name="WebApp.lnk">
+			<TargetPath>%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe</TargetPath>
+			<Arguments>https://www.company.com/path/to/webapp</Arguments>
+		</Shortcut>
+		<Shortcut Location="CommonDesktopDirectory" Name="Google.url">
+			<TargetPath>https://www.google.com</TargetPath>
+		</Shortcut>
+	</SystemShortcuts>
+	<RegistryData>
+		<Item Description="Disable Fast Startup">
+			<Key>HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Power</Key>
+			<Name>HiberbootEnabled</Name>
+			<Value>0x0</Value>
+			<Type>REG_DWORD</Type>
+		</Item>
+	</RegistryData>
+	<RemoveApps>
+		<App>Microsoft.GetHelp</App>
+	</RemoveApps>
+	<WindowsCapabilities>
+		<Capability Action="Install">NetFX3~~~~</Capability>
+		<Capability Action="Remove">App.Support.QuickAssist~~~~0.0.1.0</Capability>
+		<Capability Action="Remove">Browser.InternetExplorer~~~~0.0.11.0</Capability>
+	</WindowsCapabilities>
+	<WindowsOptionalFeatures>
+		<Feature Action="Disable">MicrosoftWindowsPowerShellV2</Feature>
+		<Feature Action="Enable">TelnetClient</Feature>
+		<Feature Action="Enable">TFTP</Feature>
+	</WindowsOptionalFeatures>
+</Config>
+```
+Each element within `<Config></Config>` is supported by a submodule containing code to handle the element as required. The config is supported by a schema that governs the provided data.

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DefaultAssociations>
+	<Association Identifier=".htm" ProgId="MSEdgeHTM" ApplicationName="Microsoft Edge" />
+	<Association Identifier=".html" ProgId="MSEdgeHTM" ApplicationName="Microsoft Edge" />
+	<Association Identifier=".pdf" ProgId="Acrobat.Document.DC" ApplicationName="Adobe Acrobat DC" />
+	<Association Identifier="http" ProgId="MSEdgeHTM" ApplicationName="Microsoft Edge" />
+	<Association Identifier="https" ProgId="MSEdgeHTM" ApplicationName="Microsoft Edge" />
+	<Association Identifier="mailto" ProgId="Outlook.URL.mailto.15" ApplicationName="Outlook" />
+</DefaultAssociations>
