@@ -1,0 +1,11 @@
+Install-DesiredStateManagement.ps1
+
+Desired State Management by The Missing Link is an automated solution to pre-configure workstations via schema-validated XML runlist to automate app removals, first-time logon setup for users, and more.
+
+The Missing Link
+2.2
+
+%windir%\sysnative\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -NoProfile -File Install-DesiredStateManagement.ps1 -Install
+%windir%\sysnative\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -NoProfile -File Install-DesiredStateManagement.ps1 -Remove
+
+Determine behaviour based on return codes.

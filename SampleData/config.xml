@@ -1,0 +1,141 @@
+<Config Version="1.0">
+	<Content>
+		<Source>https://intunendesuser-themitchcorporation.msappproxy.net/intune/desiredstate/content.zip</Source>
+		<Destination>%ProgramData%\Schenck\DesiredStateManagement\Content</Destination>
+		<EnvironmentVariable>DesiredStateContents</EnvironmentVariable>
+	</Content>
+	<RegistrationInfo>
+		<RegisteredOwner>SPG User</RegisteredOwner>
+		<RegisteredOrganization>Schenck Process Group APAC</RegisteredOrganization>
+	</RegistrationInfo>
+	<OemInformation>
+		<Manufacturer>Schenck Process Group APAC</Manufacturer>
+		<Logo>oemlogo.bmp</Logo>
+		<SupportPhone>+61 2 9886 6806</SupportPhone>
+		<SupportHours>07:30 to 18:30</SupportHours>
+		<SupportURL>https://www.schenckprocess.com/</SupportURL>
+	</OemInformation>
+	<SystemDriveLockdown Enabled="1" />
+	<DefaultStartLayout>DefaultLayouts.xml</DefaultStartLayout>
+	<DefaultAppAssociations>DefaultAssociations.xml</DefaultAppAssociations>
+	<LanguageDefaults>LanguageUnattend.xml</LanguageDefaults>
+	<DefaultTheme>Autopilot.theme</DefaultTheme>
+	<ActiveSetup Identifier="Schenck Defaults">
+		<!--Note: Once you set this identifier for your customer, don't ever change it!-->
+		<!--Note: Only increment version numbers if you wish to re-trigger the default on next logon, not necessarily because you made a change!-->
+		<Component Version="1">
+			<Name>Reduce Taskbar Searchbox</Name>
+			<StubPath>reg.exe add HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Search /v SearchboxTaskbarMode /t REG_DWORD /d 1 /f</StubPath>
+		</Component>
+		<Component Version="1">
+			<Name>Reduce News and Interests</Name>
+			<StubPath>reg.exe add HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Feeds /v ShellFeedsTaskbarViewMode /t REG_DWORD /d 1 /f</StubPath>
+		</Component>
+		<Component Version="1">
+			<Name>Disable News and Interests Hover</Name>
+			<StubPath>reg.exe add HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Feeds /v ShellFeedsTaskbarOpenOnHover /t REG_DWORD /d 0 /f</StubPath>
+		</Component>
+		<Component Version="1">
+			<Name>Disable Taskbar AutoTray</Name>
+			<StubPath>reg.exe add HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer /v EnableAutoTray /t REG_DWORD /d 0 /f</StubPath>
+		</Component>
+		<Component Version="1">
+			<Name>Default Explorer to 'This PC'</Name>
+			<StubPath>reg.exe add HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced /v LaunchTo /t REG_DWORD /d 1 /f</StubPath>
+		</Component>
+		<Component Version="1">
+			<Name>SalesLogix DB Connection</Name>
+			<StubPath>powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NoProfile -File "%DesiredStateContents%\Import-SalesLogixDBConnection.ps1"</StubPath>
+		</Component>
+		<Component Version="1">
+			<Name>Avaya Config File</Name>
+			<StubPath>powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NoProfile -File "%DesiredStateContents%\Out-AvayaConfigXmlDefault.ps1"</StubPath>
+		</Component>
+		<Component Version="1">
+			<Name>SAP UI Config File</Name>
+			<StubPath>powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NoProfile -File "%DesiredStateContents%\Out-SAPUILandscape.ps1"</StubPath>
+		</Component>
+		<Component Version="1">
+			<Name>SAP UI Global Config File</Name>
+			<StubPath>powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NoProfile -File "%DesiredStateContents%\Out-SAPUILandscapeGlobal.ps1"</StubPath>
+		</Component>
+		<Component Version="1">
+			<Name>Reset Display DPI</Name>
+			<StubPath>powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NoProfile -File "%DesiredStateContents%\Reset-DisplayDpi.ps1"</StubPath>
+		</Component>
+		<Component Version="1">
+			<Name>Inventor Professional 2018</Name>
+			<StubPath>powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NoProfile -File "%DesiredStateContents%\Set-InventorProfessional2018Defaults.ps1"</StubPath>
+		</Component>
+		<Component Version="1">
+			<Name>Vault Professional 2018</Name>
+			<StubPath>powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -NoProfile -File "%DesiredStateContents%\Set-VaultProfessional2018Defaults.ps1"</StubPath>
+		</Component>
+	</ActiveSetup>
+	<RegistryData>
+		<Item Description="Disable Fast Startup">
+			<Key>HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Power</Key>
+			<Name>HiberbootEnabled</Name>
+			<Value>0x0</Value>
+			<Type>REG_DWORD</Type>
+		</Item>
+		<Item Description="Disable Hibernation">
+			<Key>HKLM\SYSTEM\CurrentControlSet\Control\Power</Key>
+			<Name>HibernateEnabled</Name>
+			<Value>0x0</Value>
+			<Type>REG_DWORD</Type>
+		</Item>
+		<Item Description="Disable Local Storage of Passwords and Credentials">
+			<Key>HKLM\SYSTEM\CurrentControlSet\Control\Lsa</Key>
+			<Name>DisableDomainCreds</Name>
+			<Value>0x1</Value>
+			<Type>REG_DWORD</Type>
+		</Item>
+		<Item Description="Enable Local Security Authority (LSA) Protection">
+			<Key>HKLM\SYSTEM\CurrentControlSet\Control\Lsa</Key>
+			<Name>RunAsPPL</Name>
+			<Value>0x1</Value>
+			<Type>REG_DWORD</Type>
+		</Item>
+		<Item Description="Disable Network Drive Reconnection">
+			<Key>HKLM\SYSTEM\CurrentControlSet\Control\NetworkProvider</Key>
+			<Name>RestoreConnection</Name>
+			<Value>0x0</Value>
+			<Type>REG_DWORD</Type>
+		</Item>
+		<Item Description="Disable Network Location Wizard">
+			<Key>HKLM\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff</Key>
+			<Name>NewNetworkWindowOff</Name>
+			<Value>0x1</Value>
+			<Type>REG_DWORD</Type>
+		</Item>
+	</RegistryData>
+	<RemoveApps>
+		<App>Microsoft.GetHelp</App>
+		<App>Microsoft.Getstarted</App>
+		<App>Microsoft.MicrosoftOfficeHub</App>
+		<App>Microsoft.MicrosoftSolitaireCollection</App>
+		<App>Microsoft.MixedReality.Portal</App>
+		<App>Microsoft.Office.OneNote</App>
+		<App>Microsoft.People</App>
+		<App>Microsoft.SkypeApp</App>
+		<App>Microsoft.Wallet</App>
+		<App>microsoft.windowscommunicationsapps</App>
+		<App>Microsoft.WindowsFeedbackHub</App>
+		<App>Microsoft.XboxApp</App>
+		<App>Microsoft.XboxGameOverlay</App>
+		<App>Microsoft.XboxGamingOverlay</App>
+		<App>Microsoft.XboxIdentityProvider</App>
+		<App>Microsoft.XboxSpeechToTextOverlay</App>
+	</RemoveApps>
+	<WindowsCapabilities>
+		<Capability Action="Install">NetFX3~~~~</Capability>
+		<Capability Action="Remove">App.Support.QuickAssist~~~~0.0.1.0</Capability>
+		<Capability Action="Remove">Browser.InternetExplorer~~~~0.0.11.0</Capability>
+	</WindowsCapabilities>
+	<WindowsOptionalFeatures>
+		<Feature Action="Disable">MicrosoftWindowsPowerShellV2</Feature>
+		<Feature Action="Enable">TelnetClient</Feature>
+		<Feature Action="Enable">TFTP</Feature>
+	</WindowsOptionalFeatures>
+</Config>

@@ -1,0 +1,90 @@
+Install-DesiredStateManagement.ps1 v2.0
+Written by: Mitch Richters
+Running on: PowerShell 5.1.19041.1320
+Started at: 03/23/2022 20:56:02
+Transcript started, output file is C:\Users\Mitch\Desktop\Install-DesiredStateManagement.ps1_20220323T205602.log
+Commencing install process, please wait...
+———————————————————————————————————————————————————————————————————————————————
+Confirming Content state, please wait...
+Copied new file 'AutoCADMechanical2018AppData.zip'.
+Copied new file 'Autopilot.jpg'.
+Copied new file 'Autopilot.theme'.
+Copied new file 'DefaultAssociations.xml'.
+Copied new file 'DefaultLayouts.xml'.
+Copied new file 'Import-SalesLogixDBConnection.ps1'.
+Copied new file 'Install-CONiQVPN.ps1'.
+Copied new file 'LanguageUnattend.xml'.
+Copied new file 'oemlogo.bmp'.
+Copied new file 'Out-AvayaConfigXmlDefault.ps1'.
+Copied new file 'Out-AvayaDirServerXml.ps1'.
+Copied new file 'Out-SAPUILandscape.ps1'.
+Copied new file 'Out-SAPUILandscapeGlobal.ps1'.
+Copied new file 'Reset-DisplayDpi.ps1'.
+Copied new file 'Set-AutoCADMechanical2018Defaults.ps1'.
+Copied new file 'Set-InventorProfessional2018Defaults.ps1'.
+Copied new file 'Set-VaultProfessional2018Defaults.ps1'.
+Successfully installed Content components.
+———————————————————————————————————————————————————————————————————————————————
+Confirming RegistrationInfo state, please wait...
+Successfully installed RegistrationInfo values.
+———————————————————————————————————————————————————————————————————————————————
+Confirming OemInformation state, please wait...
+Installed OemInformation value 'Manufacturer'.
+Installed OemInformation value 'Logo'.
+Installed OemInformation value 'SupportPhone'.
+Installed OemInformation value 'SupportHours'.
+Installed OemInformation value 'SupportURL'.
+Successfully installed OemInformation values.
+———————————————————————————————————————————————————————————————————————————————
+Confirming SystemDriveLockdown state, please wait...
+Successfully enabled SystemDriveLockdown component.
+———————————————————————————————————————————————————————————————————————————————
+Confirming DefaultStartLayout state, please wait...
+Successfully installed DefaultStartLayout values.
+———————————————————————————————————————————————————————————————————————————————
+Confirming DefaultAppAssociations state, please wait...
+Successfully installed DefaultAppAssociations file.
+———————————————————————————————————————————————————————————————————————————————
+Confirming LanguageDefaults state, please wait...
+Successfully installed LanguageDefaults unattend file.
+———————————————————————————————————————————————————————————————————————————————
+Confirming DefaultTheme state, please wait...
+Successfully confirmed all DefaultTheme components are correctly deployed.
+———————————————————————————————————————————————————————————————————————————————
+Confirming ActiveSetup component installation state, please wait...
+Installed missing ActiveSetup component 'Reduce Taskbar Searchbox'.
+Installed missing ActiveSetup component 'Reduce News and Interests'.
+Installed missing ActiveSetup component 'Disable News and Interests Hover'.
+Installed missing ActiveSetup component 'Disable Taskbar AutoTray'.
+Installed missing ActiveSetup component 'Default Explorer to 'This PC''.
+Installed missing ActiveSetup component 'SalesLogix DB Connection'.
+Installed missing ActiveSetup component 'CONiQ Global DB VPN'.
+Installed missing ActiveSetup component 'Avaya Config File'.
+Installed missing ActiveSetup component 'Avaya DirServer File'.
+Installed missing ActiveSetup component 'SAP UI Config File'.
+Installed missing ActiveSetup component 'SAP UI Global Config File'.
+Installed missing ActiveSetup component 'Reset Display DPI'.
+Installed missing ActiveSetup component 'AutoCAD Mechanical 2018'.
+Installed missing ActiveSetup component 'Inventor Professional 2018'.
+Installed missing ActiveSetup component 'Vault Professional 2018'.
+Successfully installed all ActiveSetup components.
+———————————————————————————————————————————————————————————————————————————————
+Confirming RegistryData value installation state, please wait...
+Installed RegistryData value 'HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Power\HiberbootEnabled'.
+Installed RegistryData value 'HKLM\SYSTEM\CurrentControlSet\Control\Power\HibernateEnabled'.
+Installed RegistryData value 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\DisableDomainCreds'.
+Installed RegistryData value 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa\RunAsPPL'.
+Installed RegistryData value 'HKLM\SYSTEM\CurrentControlSet\Control\NetworkProvider\RestoreConnection'.
+Installed RegistryData value 'HKLM\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff\NewNetworkWindowOff'.
+Successfully installed all RegistryData values.
+———————————————————————————————————————————————————————————————————————————————
+Confirming RemoveApps configuration state, please wait...
+Successfully confirmed all RemoveApps items are not installed.
+———————————————————————————————————————————————————————————————————————————————
+Confirming WindowsCapabilities configuration state, please wait...
+Successfully confirmed all WindowsCapabilities are correctly deployed.
+———————————————————————————————————————————————————————————————————————————————
+Confirming WindowsOptionalFeatures configuration state, please wait...
+Successfully confirmed all WindowsOptionalFeatures are correctly deployed.
+———————————————————————————————————————————————————————————————————————————————
+Successfully installed desired state management.
