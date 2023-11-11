@@ -1,0 +1,6 @@
+*		text=auto
+*.ps1	text
+*.txt	text
+*.log	text
+*.xml	text
+*.json	text
