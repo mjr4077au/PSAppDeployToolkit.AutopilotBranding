@@ -295,12 +295,26 @@ Param (
 	[ValidateSet('Confirm', 'Install', 'Remove')]
 	[System.String]$Mode,
 
-	[Parameter(Mandatory = $false, ParameterSetName = 'Install', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
-	[Parameter(Mandatory = $false, ParameterSetName = 'Remove', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
-	[Parameter(Mandatory = $false, ParameterSetName = 'Confirm', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
-	[Parameter(Mandatory = $false, ParameterSetName = 'ModeSelect', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
+	[Parameter(Mandatory = $true, ParameterSetName = 'Install', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
+	[Parameter(Mandatory = $true, ParameterSetName = 'Remove', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
+	[Parameter(Mandatory = $true, ParameterSetName = 'Confirm', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
+	[Parameter(Mandatory = $true, ParameterSetName = 'ModeSelect', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
 	[ValidateNotNullOrEmpty()]
 	[System.String]$Config,
+
+	[Parameter(Mandatory = $false, ParameterSetName = 'Install', HelpMessage = "Provide the path to Content source if not hosted on a web server.")]
+	[Parameter(Mandatory = $false, ParameterSetName = 'Remove', HelpMessage = "Provide the path to Content source if not hosted on a web server.")]
+	[Parameter(Mandatory = $false, ParameterSetName = 'Confirm', HelpMessage = "Provide the path to Content source if not hosted on a web server.")]
+	[Parameter(Mandatory = $false, ParameterSetName = 'ModeSelect', HelpMessage = "Provide the path to Content source if not hosted on a web server.")]
+	[ValidateNotNullOrEmpty()]
+	[System.String]$ContentPath,
+
+	[Parameter(Mandatory = $false, ParameterSetName = 'Install', HelpMessage = "Provide the file/hash map to Content source if not hosted on a web server.")]
+	[Parameter(Mandatory = $false, ParameterSetName = 'Remove', HelpMessage = "Provide the file/hash map to Content source if not hosted on a web server.")]
+	[Parameter(Mandatory = $false, ParameterSetName = 'Confirm', HelpMessage = "Provide the file/hash map to Content source if not hosted on a web server.")]
+	[Parameter(Mandatory = $false, ParameterSetName = 'ModeSelect', HelpMessage = "Provide the file/hash map to Content source if not hosted on a web server.")]
+	[ValidateNotNullOrEmpty()]
+	[System.Collections.IDictionary]$DataMap,
 
 	[Parameter(Mandatory = $false, ParameterSetName = 'Install', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
 	[Parameter(Mandatory = $false, ParameterSetName = 'Remove', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
@@ -709,23 +723,20 @@ filter Get-ContentFilePath
 		throw "This element requires that 'Content' be configured to supply the required data."
 	}
 
-	# Store local copies of some variables we need to test.
-	$dest = if ($data.Content.ContainsKey('Destination')) {$data.Content.Destination}
-	$temp = if ($data.Content.ContainsKey('TemporaryDir')) {$data.Content.TemporaryDir}
+	# Confirm Content has been initialised (should be given how the script operates).
+	if (!$data.Content.ContainsKey('DataMap'))
+	{
+		throw "The 'Content' element has not been initialised. This is unexpected behaviour."
+	}
 
-	# Test that the file is available and return path if it does.
-	if ([System.IO.File]::Exists(($filepath = "$dest\$_")))
-	{
-		return $filepath
-	}
-	elseif ($Action.Equals('Confirm') -and [System.IO.File]::Exists(($filepath = "$temp\$_")))
-	{
-		return $filepath
-	}
-	else
+	# Test that the piped file path is in the Content's DataMap keys.
+	if ($data.Content.DataMap.Keys -notcontains $_)
 	{
 		throw "The specified file '$_' was not available in the provided Content location."
 	}
+
+	# Return the full path to the file within the Content element's destination.
+	return "$($data.Content.Destination)\$($_)"
 }
 
 function Get-WindowsNameVersion
@@ -1003,14 +1014,44 @@ function Invoke-ContentPreOps
 	# Do basic sanity checks.
 	try
 	{
-		# If we've specified a source, set it up. If none is specified, we assume the content is pre-seeded.
+		# Check whether we've got a hosted source as defined in the config, or we've given the toolkit content to work with.
 		if ($xml.Config.Content.ChildNodes.LocalName.Contains('Source'))
 		{
-			# Download content file. If we can't get it, we can't proceed with anything.
+			# Download the source content and extract it for mapping and copying to destination.
 			Invoke-WebRequest -UseBasicParsing -Uri $xml.Config.Content.Source -OutFile $data.Content.DownloadFile
-
-			# Extract contents to temp location. Do this first so the data is available for other modules.
 			Expand-Archive -LiteralPath $data.Content.DownloadFile -DestinationPath $data.Content.TemporaryDir -Force
+			$data.Content.DataMap = Out-FileHashDataMap -LiteralPath $data.Content.TemporaryDir
+		}
+		elseif ($ContentPath -or $DataMap)
+		{
+			# Only validate the Content path for installations.
+			if ($Action.Equals('Install'))
+			{
+				# Test that the provided path exists.
+				if (![System.IO.Directory]::Exists($ContentPath))
+				{
+					throw "The specified Content path of '$ContentPath' does not exist."
+				}
+
+				# Test that the provided path has files.
+				if (!(Get-ChildItem -LiteralPath $ContentPath))
+				{
+					throw "The specified Content path of '$ContentPath' does not contain any files or folders."
+				}
+				$data.Content.TemporaryDir = $ContentPath
+			}
+
+			# Test whether the provided DataMap is valid before storing its contents.
+			if (!$DataMap -or !$DataMap.Count)
+			{
+				throw "The specified Content data map is null or empty."
+			}
+			$data.Content.DataMap = $DataMap
+		}
+		else
+		{
+			# If we're here, something undefined has occurred.
+			throw "The Content configuration is configured in an undefined manner. Please review the config and try again."
 		}
 
 		# Set the destination path based off the incoming content, expanding any environment variables as required.
@@ -1036,9 +1077,9 @@ function Test-ContentValidity
 	}
 
 	# If we've provided source content, test its validity.
-	if ($xml.Config.Content.ChildNodes.LocalName.Contains('Source'))
+	if ($xml.Config.Content.ChildNodes.LocalName.Contains('Source') -or $ContentPath)
 	{
-		$gifParams = @{LiteralPath = $data.Content.Destination; DataMap = Out-FileHashDataMap -LiteralPath $data.Content.TemporaryDir}
+		$gifParams = @{LiteralPath = $data.Content.Destination; DataMap = $data.Content.DataMap}
 		$exitCode += 2 * !!$(try {Get-InvalidFiles @gifParams} catch {1})
 	}
 
@@ -1117,7 +1158,7 @@ function Invoke-DefaultAppAssociationsPreOps
 	{
 		# Get file path from our cache, along with its hash.
 		$data.DefaultAppAssociations.Source = $xml.Config.DefaultAppAssociations | Get-ContentFilePath
-		$data.DefaultAppAssociations.FileHash = (Get-FileHash -LiteralPath $data.DefaultAppAssociations.Source).Hash
+		$data.DefaultAppAssociations.FileHash = $data.Content.DataMap[$xml.Config.DefaultAppAssociations]
 	}
 	catch
 	{
@@ -1211,7 +1252,7 @@ function Test-DefaultStartLayoutValidity
 	# Confirm whether start layout is valid by testing whether src/dest hash match.
 	$src = $data.DefaultStartLayout.Source
 	$dst = $data.DefaultStartLayout.Destination
-	return ![System.IO.File]::Exists($dst) -or ((Get-FileHash -LiteralPath $src,$dst | Select-Object -ExpandProperty Hash -Unique) -isnot [System.String])
+	return ![System.IO.File]::Exists($dst) -or !(Get-FileHash -LiteralPath $dst).Hash.Equals($data.Content.DataMap[$src])
 }
 
 function Install-DefaultStartLayout
@@ -1310,7 +1351,8 @@ function Get-IncorrectDefaultLayoutModifications
 {
 	# Confirm whether start layout is valid by testing whether src/dest hash match.
 	return $data.DefaultLayoutModification.FilePaths | Where-Object {
-		![System.IO.File]::Exists($_.Destination) -or ((Get-FileHash -LiteralPath $_.Values | Select-Object -ExpandProperty Hash -Unique) -isnot [System.String])
+		![System.IO.File]::Exists($_.Destination) -or
+		!(Get-FileHash -LiteralPath $_.Destination).Hash.Equals($data.Content.DataMap[$_.LiteralPath.Replace("$($data.Content.Destination)\", $null)])
 	}
 }
 
@@ -1447,7 +1489,7 @@ function Invoke-LanguageDefaultsPreOps
 	{
 		# Get file path from our cache, along with its hash.
 		$data.LanguageDefaults.Source = $xml.Config.LanguageDefaults | Get-ContentFilePath
-		$data.LanguageDefaults.FileHash = (Get-FileHash -LiteralPath $data.LanguageDefaults.Source).Hash
+		$data.LanguageDefaults.FileHash = $data.Content.DataMap[$xml.Config.LanguageDefaults]
 	}
 	catch
 	{

@@ -52,34 +52,26 @@ $ProgressPreference = [System.Management.Automation.ActionPreference]::SilentlyC
 Set-PSDebug -Strict
 Set-StrictMode -Version Latest
 
-# Set required variables for install operation.
-$scrName = 'Install-DesiredStateManagement.ps1'
-$scrMode = $PSCmdlet.ParameterSetName
-
-# Store list of hashes for all content files. Set this variable to null if we're not processing content.
-# To regenerate, run the following from the Content folder and paste results here: Get-ChildItem -File -Recurse | Get-FileHash | ForEach-Object -Begin {'$srcHashes = @('} -Process {"'$($_.Hash)'"} -End {')'}
-$srcHashes = @(
-	'18BD6E51B6BBC3D219C20E4479A3D2F03B398DE0C7F0349EDB1BB99DFAB3AA5F'
-	'B7D3E2ECC2663CC3814C6FF96A88A80EFE5B78301C098543B7BD5422E6703599'
-	'E7B88BD693809CD30B5D3290D2D70B08E244F2465C49419F4EF13F72F5AF32DB'
-	'A26ED8240C9B71765887FE539B4334AF4034486428270318AD54368824E6AE2C'
-	'1246BE6E8CC2F0580A1B9806B1D470D6C9959D0A27163B20FAF033603122B068'
-	'B1D6EEA453C9E142C6817592AC0182025871DCFB0235E31CDCC944A4215C7DD5'
-	'8A754B081343650EB5BB21486FCC21F99B17932507E4C064BDC5B7335FA3F867'
-	'F17F6273414522803F59856EBEB524E6E2DA981764A6A4F1943B58A3E0F1905A'
-	'A8488763A0E9F6FBA351EFC9697D29A272FC436D5B683043AA42736E9CD3919D'
-	'C34BA0EB2729DBF6A160F2F766AD5C445A841BA8D710DAD2F94D0D016AA3F4B5'
-	'A7A70DAC2C1EB6ECB894102E59982BE1CF4ED3F997D07DF33830ED204BAEFC9D'
-	'44A0D1A833285A2504A6B1BBE605217B49B8EF168D15641A60649F3262BD51F3'
-	'CC7E68049AC3BD229064866842832132BE342FDC8B9AB0672A87951BCC937E18'
-	'F886BBC3E890499F7087654A806403DEA3A42C5B23873AC1F234FD4C6ECC896C'
-	'5C841D8C77038B787FF120EAB4DD587D6D4A493FE6581D275BED62BA9320DA14'
-	'0547CFC1110D7FC14B653652AA851191D4D23BA924F0622685DDB6156FB8DB8C'
-	'C94B4152ED8B1F8E4A8804416F9A306D3E5E30EFDBC06D27EEFF6B18F810ABCC'
-	'1BE85A64AAD2C3CAA0DC28705B49A1548E85157F4D2D522C20FEC4B4570A623F'
-	'0277083A65F058C5CC9A8A579FF2EFD588A0AB05A9A196313AB920BE3DEEAB30'
-	'88C3CADEFD320D8371297CFF060937D6FFA5F72CDFB2AC8B0DBD039E61134DC8'
-)
+# Source hashes for all content to copy. Command to generate: Out-FileHashDataMap -LiteralPath "$PWD\Content" -PlainText
+$dataMap = [ordered]@{
+    "Autopilot.jpg" = 'E7B88BD693809CD30B5D3290D2D70B08E244F2465C49419F4EF13F72F5AF32DB'
+    "Autopilot.theme" = 'DE06FD8C251BA3746754515DB16C63441AB4BE5A6034D3E9DD35576346A665EA'
+    "CMTrace.exe" = '1246BE6E8CC2F0580A1B9806B1D470D6C9959D0A27163B20FAF033603122B068'
+    "DefaultAssociations.xml" = 'AC8F0AF5B10BA3A0C98D608E40DE2B2ABBA557B2E20F3406CB1298EF0511016F'
+    "DefaultLayouts.xml" = '914B74F6B9AE20E2066B063342A9BF4DC5DFFCF0935073AC794883204133A1B1'
+    "file.json" = 'B452C2225F253DAA32AD43A9E60EEBD4A93C362DAA0D32D8AC78C15DD73C6BA7'
+    "file.xml" = 'B21A4542C81015FCA788772C9331E8664D1A812E7DD62F54380C7D98DB6CB3DB'
+    "Import-SalesLogixDBConnection.ps1" = 'C6B9C02A6B636D8D245F9960793305F5AAF8A2753FDB2C08756E53242A9805B7'
+    "LanguageUnattend.xml" = '93E009C88E35C865A77088734A35AFB1519059C323C98443CC8CDC432EFC9CCB'
+    "oemlogo.bmp" = 'CC7E68049AC3BD229064866842832132BE342FDC8B9AB0672A87951BCC937E18'
+    "Out-AvayaConfigXmlDefault.ps1" = '168BAB56940C276DB672576333DF4D98CC7CDEADDEFF8AE2A4036A48321DEE65'
+    "Out-SAPUILandscape.ps1" = 'BF04F21E0D616614CCABBBB34D45C9C636802585C7779849C8FA4515E79A6994'
+    "Out-SAPUILandscapeGlobal.ps1" = 'C280D0BCC2747108DA04D881D4B0E63AD40CC71DD41842BDEEFB5F4E44E97CB8'
+    "Reset-DisplayDpi.ps1" = '931F7E651D9213ADD3D642EA7A70F1996C4018A949DD806038D8574C1CE55AA7'
+    "ServiceUI.exe" = '1BE85A64AAD2C3CAA0DC28705B49A1548E85157F4D2D522C20FEC4B4570A623F'
+    "Set-InventorProfessional2018Defaults.ps1" = 'F2D1EB54410BA8D3A3B42EFFDB6DC4FE5E1288F57F3FA709526D99D6A567AB70'
+    "Set-VaultProfessional2018Defaults.ps1" = '04BB32F0BADA252942E49825DB5E6B31BEFA9CF9C0FDDCB32BE71A6B10D9BE87'
+}
 
 # Config to load into Invoke-DesiredStateManagementOperation.ps1.
 $config = @"
@@ -243,172 +235,6 @@ $config = @"
 </Config>
 "@
 
-# Define functions main script actions.
-filter Write-StdErrMessage
-{
-	# We can only truly write to stderr in a ConsoleHost.
-	if (!$Host.Name.Equals('ConsoleHost'))
-	{
-		$Host.UI.WriteErrorLine($_)
-		return
-	}
-
-	# Colour just like Write-Error and directly write to stderr.
-	[System.Console]::BackgroundColor = [System.ConsoleColor]::Black
-	[System.Console]::ForegroundColor = [System.ConsoleColor]::Red
-	[System.Console]::Error.WriteLine($_)
-	[System.Console]::ResetColor()
-}
-
-filter Get-ErrorRecord
-{
-	# Preference an inner exception's error record if it's available, otherwise just return the piped object.
-	try {($err = $_).Exception.InnerException.ErrorRecord} catch {$err}
-}
-
-filter Out-FriendlyErrorMessage ([ValidateNotNullOrEmpty()][System.String]$ErrorPrefix)
-{
-	# Set up initial vars. We do some determination for the best/right stacktrace line.
-	$eRecord = $_ | Get-ErrorRecord
-	$ePrefix = if ($ErrorPrefix) {"$ErrorPrefix`n"} else {'ERROR: '}
-	$command = $eRecord.InvocationInfo.MyCommand | Select-Object -ExpandProperty Name
-	$message = $eRecord.Exception.Message.Split("`n").Where({![System.String]::IsNullOrWhiteSpace($_)})
-	$stArray = $eRecord.ScriptStackTrace.Split("`n")
-	$staLine = $stArray[$stArray[0].Contains('<No file>')]
-
-	# Get variables from stack trace line, as well as called command if available.
-	if (![System.String]::IsNullOrWhiteSpace($staLine))
-	{
-		$function, $path, $file, $line = [System.Text.RegularExpressions.Regex]::Match($staLine, '^at\s(.+),\s(.+)\\(.+):\sline\s(\d+)').Groups.Value[1..4]
-		$cmdlet = $command | Where-Object {!$function.Equals($_)}
-		return "$($ePrefix)Line #$line`: $function`: $(if ($cmdlet) {"$cmdlet`: "})$message"
-	}
-	elseif ($command)
-	{
-		return "$($ePrefix)Line #$($_.InvocationInfo.ScriptLineNumber): $command`: $message"
-	}
-	else
-	{
-		return "$($ePrefix.Replace("`n",": "))$message"
-	}
-}
-
-function Get-LogTimestamp
-{
-	return [System.DateTime]::Now.ToString('yyyy-MM-ddTHH:mm:ss')
-}
-
-filter Format-LogEntry
-{
-	return "[$(Get-LogTimestamp)] $_"
-}
-
-function Write-LogEntry ([Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][System.String]$Message)
-{
-	$Message | Format-LogEntry | Write-Host
-}
-
-function Install-Content
-{
-	# Mirror our extracted folder with our destination using Robocopy.
-	robocopy.exe "$PWD\Content" $content /MIR /FP 2>&1 | ForEach-Object {
-		# Test the line to determine the action.
-		switch -Regex -CaseSensitive ($_) {
-			'\*EXTRA File' {
-				Write-LogEntry -Message "Removed deprecated file '$($_ -replace '^.+\\')'."
-				break
-			}
-			'Newer' {
-				Write-LogEntry -Message "Updated existing file '$($_ -replace '^.+\\')'."
-				break
-			}
-			'New File' {
-				Write-LogEntry -Message "Copied new file '$($_ -replace '^.+\\')'."
-				break
-			}
-		}
-	}
-
-	# Switch on the exit code and update appropriately.
-	switch ($LASTEXITCODE) {
-		{$_ -ge 8} {
-			throw "Transfer of content via robocopy.exe failed with exit code $LASTEXITCODE."
-			break
-		}
-		{$_ -eq 0} {
-			Write-LogEntry -Message "The required content is already correctly installed."
-			break
-		}
-		default {
-			Write-LogEntry -Message "Successfully installed required content."
-			break
-		}
-	}
-}
-
-function Confirm-Content
-{
-	# Get all hashes from the destination.
-	$dstHashes = Get-ChildItem -LiteralPath $content -Recurse -ErrorAction Ignore | Get-FileHash | Select-Object -ExpandProperty Hash
-
-	# Throw if we have any invalid hashes.
-	if (!$dstHashes -or (Compare-Object -ReferenceObject $srcHashes -DifferenceObject $dstHashes))
-	{
-		throw "The current content state is inconsistent with the source content."
-	}
-	Write-LogEntry -Message "Successfully confirmed content state."
-}
-
-# Get path to content.
-$content = try {[System.Environment]::ExpandEnvironmentVariables(($xml = [xml]$config).Config.Content.Destination)} catch {$null}
-
-# Install content if conditions are correct.
-if (!$scrMode.Equals('Remove') -and $srcHashes -and $content -and !$xml.Config.Content.ChildNodes.LocalName.Contains('Source'))
-{
-	try
-	{
-		# Set up log file and start transcription.
-		$logPath = [System.IO.Directory]::CreateDirectory("$Env:SystemRoot\Logs\$scrName").FullName
-		$logFile = "$logPath\$($scrName)_$($scrMode)_$((Get-LogTimestamp).Replace(':',$null))_{0}.log"
-		[System.Console]::WriteLine((Start-Transcript -LiteralPath ($logFile -f 'Transcript')))
-		Write-LogEntry -Message "Commencing $($scrMode.ToLower()) process."
-
-		# Perform content actions.
-		[System.Management.Automation.ScriptBlock]::Create("$($scrMode)-Content").Invoke()
-	}
-	catch
-	{
-		# Get an inner exception if we have one.
-		$thisError = $_ | Get-ErrorRecord
-
-		# Handle messages we throw vs. cmdlets throwing exceptions.
-		if (($thisError.CategoryInfo.Category -eq 'OperationStopped') -and ($thisError.CategoryInfo.Reason -eq 'RuntimeException'))
-		{
-			# Write the direct error message to StdErr.
-			$thisError.Exception.Message | Format-LogEntry | Write-StdErrMessage
-		}
-		else
-		{
-			# A native cmdlet has errored out. Pretty up the message before writing it out.
-			$thisError | Out-FriendlyErrorMessage | Format-LogEntry | Write-StdErrMessage
-		}
-
-		# Set an exit code that'll indicate failure.
-		$exitCode = 1603
-	}
-	finally
-	{
-		# The Start/Stop-Transcript commands return actual strings that we don't want captured.
-		[System.Console]::WriteLine((Stop-Transcript))
-
-		# Exit if we have an exit code set.
-		if (Get-Variable -Name exitCode -ErrorAction Ignore) {exit $exitCode}
-
-		# Insert a peace-keeping line break before calling external script.
-		[System.Console]::WriteLine()
-	}
-}
-
-# With content potentially pre-seeded, finally call Invoke-DesiredStateManagementOperation.ps1 and do underlying operation.
-Invoke-DesiredStateManagementOperation.ps1 -Mode $PSCmdlet.ParameterSetName -Config $config
+# Call Invoke-DesiredStateManagementOperation.ps1 and do underlying operation.
+Invoke-DesiredStateManagementOperation.ps1 -Mode $PSCmdlet.ParameterSetName -Config $config -ContentPath "$PWD\Content" -DataMap $dataMap
 exit $LASTEXITCODE
