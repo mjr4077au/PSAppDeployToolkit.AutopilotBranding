@@ -1,4 +1,4 @@
-
+﻿
 <#PSScriptInfo
 
 .VERSION 2.7
@@ -6,6 +6,8 @@
 .GUID dd1fb415-b54e-4773-938c-5c575c335bbd
 
 .AUTHOR Mitch Richters
+
+.COMPANYNAME The Missing Link Network Integration Pty Ltd
 
 .COPYRIGHT Copyright © 2023 Mitchell James Richters. All rights reserved.
 
@@ -24,22 +26,7 @@
 .EXTERNALSCRIPTDEPENDENCIES
 
 .RELEASENOTES
-- Made `DefaultStartLayout` supported on Window 10 systems only.
-- Made `DefaultLayoutModification` supported on Window 10 systems only.
-- Removed checks for Windows version in `DefaultLayoutModification` module.
-- Reworked XML schema to support taskbar and start menu elements under `DefaultLayoutModification`.
-- Defined `baseJsonFile` schema element for parsing input to `DefaultLayoutModification`.
-- Cleaned up remains of legacy `DefaultLayoutModification` from XML schema.
-- Updated example XML file to reflect changes.
-- Reworked `DefaultLayoutModification` module around changes to underlying XML file.
-- Amend extension getting in `Get-SystemShortcutsFilePath` to use [System.IO.Path]::GetExtension() instead of doing a split.
-- Rename `Get-IncorrectOemInformation` to `Get-IncorrectOemInformation`.
-- Clean up some local variable names within functions for consistency.
-- Don't ignore errors from `Get-FileHash` within `Invoke-DefaultAppAssociationsPreOps`.
-- Don't ignore errors from `Get-FileHash` within `Invoke-LanguageDefaultsPreOps`.
-- Simplify test performed in `Test-DefaultAppAssociationsApplicability`.
-- Simplify test performed in `Test-LanguageDefaultsApplicability`.
-- Simplify test performed in `Test-DefaultStartLayoutValidity`.
+- Migrate script to common backend utilities.
 
 #>
 
@@ -160,7 +147,25 @@ stdout stream. Invoke-DesiredStateManagementOperation.ps1 returns a log string v
 stderr stream. Invoke-DesiredStateManagementOperation.ps1 writes all error text to stderr for catching externally to PowerShell if required.
 
 .NOTES
-*Changelog*
+**Changelog**
+
+2.7
+- Made `DefaultStartLayout` supported on Window 10 systems only.
+- Made `DefaultLayoutModification` supported on Window 10 systems only.
+- Removed checks for Windows version in `DefaultLayoutModification` module.
+- Reworked XML schema to support taskbar and start menu elements under `DefaultLayoutModification`.
+- Defined `baseJsonFile` schema element for parsing input to `DefaultLayoutModification`.
+- Cleaned up remains of legacy `DefaultLayoutModification` from XML schema.
+- Updated example XML file to reflect changes.
+- Reworked `DefaultLayoutModification` module around changes to underlying XML file.
+- Amend extension getting in `Get-SystemShortcutsFilePath` to use [System.IO.Path]::GetExtension() instead of doing a split.
+- Rename `Get-IncorrectOemInformation` to `Get-IncorrectOemInformation`.
+- Clean up some local variable names within functions for consistency.
+- Don't ignore errors from `Get-FileHash` within `Invoke-DefaultAppAssociationsPreOps`.
+- Don't ignore errors from `Get-FileHash` within `Invoke-LanguageDefaultsPreOps`.
+- Simplify test performed in `Test-DefaultAppAssociationsApplicability`.
+- Simplify test performed in `Test-LanguageDefaultsApplicability`.
+- Simplify test performed in `Test-DefaultStartLayoutValidity`.
 
 2.6
 - Added `Get-WindowsNameVersion` to enumerate an OS build number down to its named version (10, 11, 7, XP, etc).
@@ -264,7 +269,7 @@ stderr stream. Invoke-DesiredStateManagementOperation.ps1 writes all error text 
 - Improve logic used in `Remove-DefaultStartLayout` function.
 - Fixed state detection issue in `OemInformation` section.
 
-1.1
+2.1
 - Functionalised some more code for better clarity.
 - Fixed `-Force` argument against `New-ItemProperty` for RegistrationInfo section that was in piped object and not on the cmdlet call.
 - Change main execution block to test for function existence, not just that $moduledata has a supporting key.
@@ -295,25 +300,25 @@ Param (
 	[Parameter(Mandatory = $false, ParameterSetName = 'Confirm', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
 	[Parameter(Mandatory = $false, ParameterSetName = 'ModeSelect', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
 	[ValidateNotNullOrEmpty()]
-	[System.String]$Config
+	[System.String]$Config,
+
+	[Parameter(Mandatory = $false, ParameterSetName = 'Install', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
+	[Parameter(Mandatory = $false, ParameterSetName = 'Remove', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
+	[Parameter(Mandatory = $false, ParameterSetName = 'Confirm', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
+	[Parameter(Mandatory = $false, ParameterSetName = 'ModeSelect', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
+	[ValidateNotNullOrEmpty()]
+	[System.String]$Discriminator
 )
+
+# Set our requirements here.
+#Requires -Version 5.1
+#Requires -Modules @{ ModuleName="TMLSTL.Logging"; ModuleVersion="5.3" }, @{ ModuleName="TMLSTL.Utilities"; ModuleVersion="5.3" }
 
 # Set required variables to ensure script functionality.
 $ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
+$ProgressPreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
 Set-PSDebug -Strict
 Set-StrictMode -Version Latest
-
-# Define script properties.
-$script = @{
-	Name = 'Invoke-DesiredStateManagementOperation.ps1'  # Hard-coded as using script as detection script will mangle the filename.
-	Info = Test-ScriptFileInfo -LiteralPath $MyInvocation.MyCommand.Source
-	LogDiscriminator = [System.String]::Empty
-	Action = if ($Mode) {$Mode} else {$PSCmdlet.ParameterSetName}
-	Divider = ([System.Char]0x2014).ToString() * 79
-	StartDate = [System.DateTime]::Now
-	WScriptShell = New-Object -ComObject WScript.Shell
-	ExitCode = 0
-}
 
 # Store XML schema.
 $schema = @'
@@ -595,68 +600,6 @@ $schema = @'
 #
 #---------------------------------------------------------------------------
 
-filter Write-StdErrMessage
-{
-	# Test if we're in a console host or ISE.
-	if ($Host.Name.Equals('ConsoleHost'))
-	{
-		# Colour appropriately and directly write to stderr.
-		[System.Console]::BackgroundColor = [System.ConsoleColor]::Black
-		[System.Console]::ForegroundColor = [System.ConsoleColor]::Red
-		[System.Console]::Error.WriteLine($_)
-		[System.Console]::ResetColor()
-	}
-	else
-	{
-		# Use the Host's UI while in ISE.
-		$Host.UI.WriteErrorLine($_)
-	}
-}
-
-filter Get-ErrorRecord
-{
-	# Preference an inner exception's error record if it's available, otherwise just return the piped object.
-	try {($err = $_).Exception.InnerException.ErrorRecord} catch {$err}
-}
-
-filter Out-FriendlyErrorMessage ([ValidateNotNullOrEmpty()][System.String]$ErrorPrefix)
-{
-	# Set up initial vars. We do some determination for the best/right stacktrace line.
-	$eRecord = $_ | Get-ErrorRecord
-	$ePrefix = if ($ErrorPrefix) {"$ErrorPrefix`n"} else {'ERROR: '}
-	$command = $eRecord.InvocationInfo.MyCommand | Select-Object -ExpandProperty Name
-	$message = $eRecord.Exception.Message.Split("`n").Where({![System.String]::IsNullOrWhiteSpace($_)})
-	$stArray = $eRecord.ScriptStackTrace.Split("`n")
-	$staLine = $stArray[$stArray[0].Contains('<No file>')]
-
-	# Get variables from stack trace line, as well as called command if available.
-	if (![System.String]::IsNullOrWhiteSpace($staLine))
-	{
-		$function, $path, $file, $line = [System.Text.RegularExpressions.Regex]::Match($staLine, '^at\s(.+),\s(.+)\\(.+):\sline\s(\d+)').Groups.Value[1..4]
-		$cmdlet = $command | Where-Object {!$function.Equals($_)}
-		return "$($ePrefix)Line #$line`: $function`: $(if ($cmdlet) {"$cmdlet`: "})$message"
-	}
-	elseif ($command)
-	{
-		return "$($ePrefix)Line #$($_.InvocationInfo.ScriptLineNumber): $command`: $message"
-	}
-	else
-	{
-		return "$($ePrefix.Replace("`n",": "))$message"
-	}
-}
-
-function Get-DefaultUserProfilePath
-{
-	return [Microsoft.Win32.Registry]::GetValue('HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList', 'Default', $null)
-}
-
-function Get-DefaultUserLocalAppDataPath
-{
-	$path = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{F1B32785-6FBA-4FCF-9D55-7B8E7F157091}"
-	return "$(Get-DefaultUserProfilePath)\$([Microsoft.Win32.Registry]::GetValue($path, 'RelativePath', $null))"
-}
-
 filter Get-RegistryDataItemValue
 {
 	# If we're doing a binary value, convert the byte array into a registry-style string.
@@ -742,17 +685,17 @@ filter Get-ItemPropertyUnexpanded
 	$_.Property.Where({!$_.Equals('(default)')}).ForEach({
 		begin {
 			# Open hashtable to hold data.
-			$data = @{}
+			$obj = @{}
 		}
 		process {
 			# Get data from incoming RegistryKey.
-			$data.Add($_, $InputObject.GetValue($_, $null, 'DoNotExpandEnvironmentNames'))
+			$obj.Add($_, $InputObject.GetValue($_, $null, 'DoNotExpandEnvironmentNames'))
 		}
 		end {
 			# Return pscustomobject to the pipeline if we have data.
-			if ($data.GetEnumerator().Where({$_.Value}))
+			if ($obj.GetEnumerator().Where({$_.Value}))
 			{
-				return [pscustomobject]$data
+				return [pscustomobject]$obj
 			}
 		}
 	})
@@ -761,21 +704,21 @@ filter Get-ItemPropertyUnexpanded
 filter Get-ContentFilePath
 {
 	# Confirm we have a 'Content' element specified.
-	if ($script.Config.ChildNodes.LocalName -notcontains 'Content')
+	if ($xml.Config.ChildNodes.LocalName -notcontains 'Content')
 	{
 		throw "This element requires that 'Content' be configured to supply the required data."
 	}
 
 	# Store local copies of some variables we need to test.
-	$dest = if ($script.ModuleData.Content.ContainsKey('Destination')) {$script.ModuleData.Content.Destination}
-	$temp = if ($script.ModuleData.Content.ContainsKey('TemporaryDir')) {$script.ModuleData.Content.TemporaryDir}
+	$dest = if ($data.Content.ContainsKey('Destination')) {$data.Content.Destination}
+	$temp = if ($data.Content.ContainsKey('TemporaryDir')) {$data.Content.TemporaryDir}
 
 	# Test that the file is available and return path if it does.
 	if ([System.IO.File]::Exists(($filepath = "$dest\$_")))
 	{
 		return $filepath
 	}
-	elseif ($script.Action.Equals('Confirm') -and [System.IO.File]::Exists(($filepath = "$temp\$_")))
+	elseif ($Action.Equals('Confirm') -and [System.IO.File]::Exists(($filepath = "$temp\$_")))
 	{
 		return $filepath
 	}
@@ -783,57 +726,6 @@ filter Get-ContentFilePath
 	{
 		throw "The specified file '$_' was not available in the provided Content location."
 	}
-}
-
-function ConvertTo-BulletedList ([System.Management.Automation.SwitchParameter]$NoDateTimeStamp)
-{
-	return "`n$([System.String]::Join("`n", ($input.Where({![System.String]::IsNullOrWhiteSpace($_)}) -replace "^","> ")))"
-}
-
-function Get-EnvironmentVariableValue
-{
-	<#
-
-	.NOTES
-	While we have `[System.Environment]::GetEnvironmentVariable()` available to us, this will not retrieve a variable set within the same session.
-
-	#>
-
-	Param (
-		[Parameter(Mandatory = $true)]
-		[ValidateNotNullOrEmpty()]
-		[System.String]$Variable,
-
-		[Parameter(Mandatory = $true)]
-		[ValidateNotNullOrEmpty()]
-		[System.EnvironmentVariableTarget]$Target
-	)
-
-	# Set up paths based on target.
-	$path = switch ($Target) {
-		'Machine' {
-			'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment'
-			break
-		}
-		'User' {
-			'HKEY_CURRENT_USER\Environment'
-			'HKEY_CURRENT_USER\Volatile Environment'
-			break
-		}
-		default {
-			throw "An unsupported target has been specified."
-		}
-	}
-
-	# Return the value to the caller.
-	return [Microsoft.Win32.Registry]::GetValue($path, $Variable, $null)
-}
-
-function Set-SystemPathVariable ([Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][System.String]$NewValue)
-{
-	# Update the variable and refresh it system-wide via the comamnd prompt.
-	[System.Environment]::SetEnvironmentVariable('Path', $NewValue, [System.EnvironmentVariableTarget]::Machine)
-	[System.Void](cmd.exe /c "SET PATH=C")
 }
 
 function Get-WindowsNameVersion
@@ -880,38 +772,10 @@ function Get-WindowsNameVersion
 #
 #---------------------------------------------------------------------------
 
-function Open-Log
-{
-	# Output initial log information.
-	Write-LogEntry -Message "$($script.Name) $($script.Info.Version)"
-	Write-LogEntry -Message "Written by: $($script.Info.Author)"
-	Write-LogEntry -Message "Running on: PowerShell $($Host.Version.ToString())"
-	Write-LogEntry -Message "Started at: $($script.StartDate)"
-
-	# Start transcription.
-	$logPath = [System.IO.Directory]::CreateDirectory("$env:WinDir\Logs\DesiredStateManagement").FullName
-	$logDisc = if ($script.LogDiscriminator) {"_$($script.LogDiscriminator)"}
-	$logFile = "$($script.Name)$($logDisc)_$($script.Action)_$($script.StartDate.ToString('yyyyMMddTHHmmss')).log"
-	[System.Console]::WriteLine((Start-Transcript -LiteralPath "$logPath\$logFile"))
-	Write-LogEntry -Message "Commencing $($script.Action.ToLower()) process, please wait...`n$($script.Divider)"
-}
-
-function Write-LogEntry ([Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][System.String]$Message)
-{
-	# This is here to shut `Invoke-ScriptAnalyzer` up... Write-Host is fine in PS 5.1+ environments.
-	Write-Host $Message
-}
-
-function Close-Log
-{
-	# Close out transcription and null redundant output.
-	[System.Void]$(try {Stop-Transcript} catch {$null})
-}
-
 function Initialize-ModuleData
 {
 	# Nothing here should ever require changing/manipulation.
-	$script.ModuleData = @{
+	return @{
 		ActiveSetup = @{
 			RegistryBase = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components'
 		}
@@ -924,7 +788,7 @@ function Initialize-ModuleData
 		}
 		DefaultStartLayout = @{
 			BaseDirectory = ($basedir = "$(Get-DefaultUserLocalAppDataPath)\Microsoft\Windows\Shell")
-			Archive = "$basedir\DefaultLayouts.$($script.StartDate.ToString('yyyyMMddTHHmmss')).backup"
+			Archive = "$basedir\DefaultLayouts.$(Get-ScriptStartDateTime -AsFilestamp).backup"
 			Destination = "$basedir\DefaultLayouts.xml"
 		}
 		DefaultLayoutModification = @{
@@ -964,8 +828,8 @@ function Initialize-ModuleData
 		}
 		SystemShortcuts = @{
 			ShortcutProperties = @{
-				'.lnk' = $script.WScriptShell.CreateShortcut("$tempdir\$(Get-Random).lnk").PSObject.Properties.Name
-				'.url' = $script.WScriptShell.CreateShortcut("$tempdir\$(Get-Random).url").PSObject.Properties.Name
+				'.lnk' = $wsShell.CreateShortcut("$tempdir\$(Get-Random).lnk").PSObject.Properties.Name
+				'.url' = $wsShell.CreateShortcut("$tempdir\$(Get-Random).url").PSObject.Properties.Name
 			}
 			ExpandProperties = 'TargetPath', 'IconLocation', 'RelativePath', 'WorkingDirectory'
 		}
@@ -982,32 +846,36 @@ function Import-DesiredStateConfig
 	$xml.Schemas.Add([System.Xml.Schema.XmlSchema]::Read([System.IO.StringReader]::new($schema), $err)) | Out-Null
 	$xml.Load($(try {[System.Xml.XmlReader]::Create($Config)} catch {[System.IO.StringReader]::new($Config)}))
 	$xml.Validate($err)
-	$script.Config = $xml.Config
+	return $xml
 }
 
-function Invoke-DesiredStateOperations
+function Invoke-DesiredStateOperations ([Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][System.String]$Action)
 {
-	# Dynamically generate scriptblocks based on the XML config and this script's available supporting functions.
-	$div = if ($script.Action.Equals('Install')) {"; Write-LogEntry -Message '$($script.Divider)'"}
-	$ops = $script.Config.ChildNodes.LocalName | ForEach-Object {
-		if ($cmdlet = Get-Command -Name "$($script.Action)-$_" -ErrorAction Ignore) {
-			[System.Management.Automation.ScriptBlock]::Create("$cmdlet$div")
+	# Initialise variables for desired state ops.
+	$wsShell = New-Object -ComObject WScript.Shell
+
+	# Get all required data.
+	$data = Initialize-ModuleData
+	$xml = Import-DesiredStateConfig
+
+	# Dynamically generate and invoike scriptblocks based on the XML config and what this script supports.
+	$div = if ($Action.Equals('Install')) {"; Write-LogDivider"}
+	$res = $xml.Config.ChildNodes.LocalName | ForEach-Object {
+		if ($cmdlet = Get-Command -Name "$($Action)-$_" -ErrorAction Ignore) {
+			[System.Management.Automation.ScriptBlock]::Create("$cmdlet$div").Invoke()
 		}
 	}
 
-	# Invoke operations and store any output.
-	$script.TestResults = if ($res = $ops.Invoke()) {[System.String]::Join("`n", $res)}
-	if (!$script.Action.Equals('Install')) {Write-LogEntry -Message $script.Divider}
+	# Release the WScript.Shell COM object.
+	[System.Void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($wsShell)
+	$wsShell = $null; Remove-Variable -Name wsShell -Force -Confirm:$false
 
-	# Throw if we receive any test results.
-	if ($script.TestResults)
+	# Return any output to the caller.
+	if ($res -and ![System.String]::IsNullOrWhiteSpace(($res = [System.String]::Join("`n", $res))))
 	{
-		throw $script.TestResults
+		if ($Action.Equals('Confirm')) {Write-LogDivider}
+		return $res
 	}
-
-	# Indicate success and whether a reboot is needed or not.
-	Write-LogEntry -Message "Successfully $($script.Action.ToLower().TrimEnd('e'))ed desired state management."
-	if ($script.ExitCode.Equals(3010)) {Write-LogEntry -Message "Please restart this computer for the changes to take effect."}
 }
 
 
@@ -1019,23 +887,23 @@ function Invoke-DesiredStateOperations
 
 filter Out-ActiveSetupComponentName
 {
-	return "$($script.Config.ActiveSetup.Identifier) - $_"
+	return "$($xml.Config.ActiveSetup.Identifier) - $_"
 }
 
 function Get-ActiveSetupState
 {
 	# Store registry base locally to reduce line length.
-	$regbase = $script.ModuleData.ActiveSetup.RegistryBase
+	$regbase = $data.ActiveSetup.RegistryBase
 
 	# Return state to the pipeline.
 	return [pscustomobject]@{
-		NotPresent = $script.Config.ActiveSetup.Component | Where-Object {
+		NotPresent = $xml.Config.ActiveSetup.Component | Where-Object {
 			!(Test-Path -LiteralPath "$regbase\$($_.Name | Out-ActiveSetupComponentName)" -PathType Container)
 		}
-		Deprecated = Get-Item -Path "$regbase\$(($prefix = "$($script.Config.ActiveSetup.Identifier) - "))*" | Where-Object {
-			$script.Config.ActiveSetup.Component.Name -notcontains $_.PSChildName.Replace($prefix, $null)
+		Deprecated = Get-Item -Path "$regbase\$(($prefix = "$($xml.Config.ActiveSetup.Identifier) - "))*" | Where-Object {
+			$xml.Config.ActiveSetup.Component.Name -notcontains $_.PSChildName.Replace($prefix, $null)
 		}
-		Mismatched = $script.Config.ActiveSetup.Component | Where-Object {
+		Mismatched = $xml.Config.ActiveSetup.Component | Where-Object {
 			($dest = Get-Item -LiteralPath "$regbase\$($_.Name | Out-ActiveSetupComponentName)" -ErrorAction Ignore | Get-ItemPropertyUnexpanded) -and
 			(Compare-Object -ReferenceObject $_ -DifferenceObject $dest -Property Version,StubPath)
 		}
@@ -1046,7 +914,7 @@ filter Install-ActiveSetupComponent ([ValidateSet('Install','Update')][System.St
 {
 	# Set up component's key and associated properties.
 	$name = $_.Name | Out-ActiveSetupComponentName
-	$path = (New-Item -Path $script.ModuleData.ActiveSetup.RegistryBase -Name $name -Value $name -Force).Name
+	$path = (New-Item -Path $data.ActiveSetup.RegistryBase -Name $name -Value $name -Force).Name
 
 	# Create item properties.
 	[Microsoft.Win32.Registry]::SetValue($path, 'Version', $_.Version, [Microsoft.Win32.RegistryValueKind]::String)
@@ -1084,7 +952,7 @@ function Install-ActiveSetup
 		$components.Mismatched | Install-ActiveSetupComponent -Action Update
 		$components.NotPresent | Install-ActiveSetupComponent -Action Install
 		Write-LogEntry -Message "Successfully installed all ActiveSetup components."
-		$script.ExitCode = 3010
+		Update-ExitCode -Value 3010
 	}
 	else
 	{
@@ -1116,7 +984,7 @@ function Confirm-ActiveSetup
 function Remove-ActiveSetup
 {
 	# Remove all items.
-	Remove-Item -Path "$($script.ModuleData.ActiveSetup.RegistryBase)\$($script.Config.ActiveSetup.Identifier)*" -Force -Confirm:$false
+	Remove-Item -Path "$($data.ActiveSetup.RegistryBase)\$($xml.Config.ActiveSetup.Identifier)*" -Force -Confirm:$false
 	Write-LogEntry -Message "Successfully removed all ActiveSetup components."
 }
 
@@ -1136,17 +1004,17 @@ function Invoke-ContentPreOps
 	try
 	{
 		# If we've specified a source, set it up. If none is specified, we assume the content is pre-seeded.
-		if ($script.Config.Content.ChildNodes.LocalName.Contains('Source'))
+		if ($xml.Config.Content.ChildNodes.LocalName.Contains('Source'))
 		{
 			# Download content file. If we can't get it, we can't proceed with anything.
-			Invoke-WebRequest -UseBasicParsing -Uri $script.Config.Content.Source -OutFile $script.ModuleData.Content.DownloadFile
+			Invoke-WebRequest -UseBasicParsing -Uri $xml.Config.Content.Source -OutFile $data.Content.DownloadFile
 
 			# Extract contents to temp location. Do this first so the data is available for other modules.
-			Expand-Archive -LiteralPath $script.ModuleData.Content.DownloadFile -DestinationPath $script.ModuleData.Content.TemporaryDir -Force
+			Expand-Archive -LiteralPath $data.Content.DownloadFile -DestinationPath $data.Content.TemporaryDir -Force
 		}
 
 		# Set the destination path based off the incoming content, expanding any environment variables as required.
-		$script.ModuleData.Content.Destination = [System.Environment]::ExpandEnvironmentVariables($script.Config.Content.Destination)
+		$data.Content.Destination = [System.Environment]::ExpandEnvironmentVariables($xml.Config.Content.Destination)
 	}
 	catch
 	{
@@ -1161,20 +1029,17 @@ function Test-ContentValidity
 	$exitCode = 0
 
 	# Test we have an environment variable first.
-	if (!(Get-EnvironmentVariableValue -Variable $script.Config.Content.EnvironmentVariable -Target Machine) -or
-		!(Get-EnvironmentVariableValue -Variable Path -Target Machine).Split(';').Contains($script.ModuleData.Content.Destination))
+	if (!(Get-EnvironmentVariableValue -Variable $xml.Config.Content.EnvironmentVariable -Target Machine) -or
+		!(Get-EnvironmentVariableValue -Variable Path -Target Machine).Split(';').Contains($data.Content.Destination))
 	{
 		$exitCode += 1
 	}
 
 	# If we've provided source content, test its validity.
-	if ($script.Config.Content.ChildNodes.LocalName.Contains('Source'))
+	if ($xml.Config.Content.ChildNodes.LocalName.Contains('Source'))
 	{
-		$coParams = @{
-			ReferenceObject = Get-ChildItem -LiteralPath $script.ModuleData.Content.TemporaryDir -File -Recurse | Get-FileHash
-			DifferenceObject = Get-ChildItem -LiteralPath $script.ModuleData.Content.Destination -File -Recurse -ErrorAction Ignore | Get-FileHash
-		}
-		$exitCode += 2 * (!$coParams.DifferenceObject -or !!(Compare-Object @coParams -Property Hash))
+		$gifParams = @{LiteralPath = $data.Content.Destination; DataMap = Out-FileHashDataMap -LiteralPath $data.Content.TemporaryDir}
+		$exitCode += 2 * !!$(try {Get-InvalidFiles @gifParams} catch {1})
 	}
 
 	# Exit with results.
@@ -1194,35 +1059,13 @@ function Install-Content
 	{
 		{$_ -gt 1} {
 			# Mirror our extracted folder with our destination using Robocopy.
-			robocopy.exe $script.ModuleData.Content.TemporaryDir $script.ModuleData.Content.Destination /MIR /FP 2>&1 | ForEach-Object {
-				# Test the line to determine the action.
-				switch -Regex -CaseSensitive ($_) {
-					'\*EXTRA File' {
-						Write-LogEntry -Message "Removed deprecated file '$($_ -replace '^.+\\')'."
-						break
-					}
-					'Newer' {
-						Write-LogEntry -Message "Updated existing file '$($_ -replace '^.+\\')'."
-						break
-					}
-					'New File' {
-						Write-LogEntry -Message "Copied new file '$($_ -replace '^.+\\')'."
-						break
-					}
-				}
-			}
-
-			# Exit codes 8 or greater mean something went wrong.
-			if ($global:LASTEXITCODE -ge 8)
-			{
-				throw "Transfer of Content via robocopy.exe failed with exit code $global:LASTEXITCODE."
-			}
+			Invoke-RobocopyTransfer -Source $data.Content.TemporaryDir -Destination $data.Content.Destination -Verbose 4>&1 | Send-VerboseRecordsToLog
 			Write-LogEntry -Message "Successfully installed Content files."
 		}
 		{$_ -gt 0} {
 			# Add content to system's path environment variable, as well as our dedicated variable.
-			Set-SystemPathVariable -NewValue ([System.String]::Join(';', @($script.ModuleData.Content.Destination) + (Get-EnvironmentVariableValue -Variable Path -Target Machine).Split(';')))
-			[System.Environment]::SetEnvironmentVariable($script.Config.Content.EnvironmentVariable, $script.ModuleData.Content.Destination, 'Machine')
+			Set-SystemPathVariable -NewValue ([System.String]::Join(';', @($data.Content.Destination) + (Get-EnvironmentVariableValue -Variable Path -Target Machine).Split(';')))
+			[System.Environment]::SetEnvironmentVariable($xml.Config.Content.EnvironmentVariable, $data.Content.Destination, 'Machine')
 			Write-LogEntry -Message "Successfully installed Content environment variable."
 		}
 		default {
@@ -1248,24 +1091,12 @@ function Confirm-Content
 
 function Remove-Content
 {
-	# Store expanded destination.
-	$dest = [System.Environment]::ExpandEnvironmentVariables($script.Config.Content.Destination)
-
-	# Delete the contents folder.
-	if ([System.IO.Directory]::Exists(($path = $dest)))
-	{
-		[System.IO.Directory]::Delete($path, $true)
-	}
-
-	# Delete folders above so long as they're empty.
-	while ([System.IO.Directory]::Exists(($path += "\..")) -and !(Get-ChildItem -LiteralPath $path))
-	{
-		[System.IO.Directory]::Delete($path, $true)
-	}
+	# Store expanded destination and delete the contents folder.
+	Remove-ItemsAndEmptyDirectory -LiteralPath ($dest = [System.Environment]::ExpandEnvironmentVariables($xml.Config.Content.Destination))
 
 	# Remove all references to the destination from the system's environment variables.
 	Set-SystemPathVariable -NewValue ([System.String]::Join(';', (Get-EnvironmentVariableValue -Variable Path -Target Machine).Split(';').Where({!$_.Equals($dest)})))
-	[System.Environment]::SetEnvironmentVariable($script.Config.Content.EnvironmentVariable, $null, 'Machine')
+	[System.Environment]::SetEnvironmentVariable($xml.Config.Content.EnvironmentVariable, $null, 'Machine')
 	Write-LogEntry -Message "Successfully removed all Content components."
 }
 
@@ -1285,8 +1116,8 @@ function Invoke-DefaultAppAssociationsPreOps
 	try
 	{
 		# Get file path from our cache, along with its hash.
-		$script.ModuleData.DefaultAppAssociations.Source = $script.Config.DefaultAppAssociations | Get-ContentFilePath
-		$script.ModuleData.DefaultAppAssociations.FileHash = (Get-FileHash -LiteralPath $script.ModuleData.DefaultAppAssociations.Source).Hash
+		$data.DefaultAppAssociations.Source = $xml.Config.DefaultAppAssociations | Get-ContentFilePath
+		$data.DefaultAppAssociations.FileHash = (Get-FileHash -LiteralPath $data.DefaultAppAssociations.Source).Hash
 	}
 	catch
 	{
@@ -1297,8 +1128,8 @@ function Invoke-DefaultAppAssociationsPreOps
 
 function Test-DefaultAppAssociationsApplicability
 {
-	return ![System.IO.File]::Exists($script.ModuleData.DefaultAppAssociations.TagFile) -or
-		!$script.ModuleData.DefaultAppAssociations.FileHash.Equals(([System.IO.File]::ReadAllText($script.ModuleData.DefaultAppAssociations.TagFile)))
+	return ![System.IO.File]::Exists($data.DefaultAppAssociations.TagFile) -or
+		!$data.DefaultAppAssociations.FileHash.Equals(([System.IO.File]::ReadAllText($data.DefaultAppAssociations.TagFile)))
 }
 
 function Install-DefaultAppAssociations
@@ -1312,8 +1143,8 @@ function Install-DefaultAppAssociations
 	# Get state and repair if needed.
 	if (Test-DefaultAppAssociationsApplicability)
 	{
-		[System.Void](dism.exe /Online /Import-DefaultAppAssociations:$script.ModuleData.DefaultAppAssociations.Source 2>&1)
-		[System.IO.File]::WriteAllText($script.ModuleData.DefaultAppAssociations.TagFile, $script.ModuleData.DefaultAppAssociations.FileHash)
+		[System.Void](dism.exe /Online /Import-DefaultAppAssociations:$data.DefaultAppAssociations.Source 2>&1)
+		[System.IO.File]::WriteAllText($data.DefaultAppAssociations.TagFile, $data.DefaultAppAssociations.FileHash)
 		Write-LogEntry -Message "Successfully installed DefaultAppAssociations file."
 	}
 	else
@@ -1339,7 +1170,7 @@ function Confirm-DefaultAppAssociations
 
 function Remove-DefaultAppAssociations
 {
-	Remove-Item -LiteralPath $script.ModuleData.DefaultAppAssociations.TagFile -Force -Confirm:$false -ErrorAction Ignore
+	Remove-Item -LiteralPath $data.DefaultAppAssociations.TagFile -Force -Confirm:$false -ErrorAction Ignore
 	Write-LogEntry -Message "Successfully removed DefaultAppAssociations tag file."
 }
 
@@ -1366,7 +1197,7 @@ function Invoke-DefaultStartLayoutPreOps
 	try
 	{
 		# Get file path from our cache.
-		$script.ModuleData.DefaultStartLayout.Source = $script.Config.DefaultStartLayout | Get-ContentFilePath
+		$data.DefaultStartLayout.Source = $xml.Config.DefaultStartLayout | Get-ContentFilePath
 	}
 	catch
 	{
@@ -1378,8 +1209,8 @@ function Invoke-DefaultStartLayoutPreOps
 function Test-DefaultStartLayoutValidity
 {
 	# Confirm whether start layout is valid by testing whether src/dest hash match.
-	$src = $script.ModuleData.DefaultStartLayout.Source
-	$dst = $script.ModuleData.DefaultStartLayout.Destination
+	$src = $data.DefaultStartLayout.Source
+	$dst = $data.DefaultStartLayout.Destination
 	return ![System.IO.File]::Exists($dst) -or ((Get-FileHash -LiteralPath $src,$dst | Select-Object -ExpandProperty Hash -Unique) -isnot [System.String])
 }
 
@@ -1394,8 +1225,8 @@ function Install-DefaultStartLayout
 	# Get state and repair if needed.
 	if (Test-DefaultStartLayoutValidity)
 	{
-		Copy-Item -LiteralPath $script.ModuleData.DefaultStartLayout.Destination -Destination $script.ModuleData.DefaultStartLayout.Archive | Out-Null
-		Copy-Item -LiteralPath $script.ModuleData.DefaultStartLayout.Source -Destination $script.ModuleData.DefaultStartLayout.Destination -Force | Out-Null
+		Copy-Item -LiteralPath $data.DefaultStartLayout.Destination -Destination $data.DefaultStartLayout.Archive | Out-Null
+		Copy-Item -LiteralPath $data.DefaultStartLayout.Source -Destination $data.DefaultStartLayout.Destination -Force | Out-Null
 		Write-LogEntry -Message "Successfully installed DefaultStartLayout values."
 	}
 	else
@@ -1422,14 +1253,14 @@ function Confirm-DefaultStartLayout
 function Remove-DefaultStartLayout
 {
 	# Get oldest backup.
-	$backup = Get-ChildItem -Path "$($script.ModuleData.DefaultStartLayout.BaseDirectory)\*.backup" |
+	$backup = Get-ChildItem -Path "$($data.DefaultStartLayout.BaseDirectory)\*.backup" |
 		Sort-Object -Property LastWriteTime | Select-Object -ExpandProperty FullName -First 1
 
 	# Restore it if we have one.
 	if ($backup)
 	{
-		Copy-Item -LiteralPath $backup -Destination $script.ModuleData.DefaultStartLayout.Destination -Force -Confirm:$false
-		Remove-Item -Path "$($script.ModuleData.DefaultStartLayout.BaseDirectory)\*.backup" -Force -Confirm:$false
+		Copy-Item -LiteralPath $backup -Destination $data.DefaultStartLayout.Destination -Force -Confirm:$false
+		Remove-Item -Path "$($data.DefaultStartLayout.BaseDirectory)\*.backup" -Force -Confirm:$false
 		Write-LogEntry -Message "Successfully restored DefaultStartLayout configuration."
 	}
 	else
@@ -1461,11 +1292,11 @@ function Invoke-DefaultLayoutModificationPreOps
 	try
 	{
 		# Format a string for use as our destination for files.
-		$dest = "$($script.ModuleData.DefaultLayoutModification.BaseDirectory)\$($script.ModuleData.DefaultLayoutModification.FileNameBase){0}"
+		$dest = "$($data.DefaultLayoutModification.BaseDirectory)\$($data.DefaultLayoutModification.FileNameBase){0}"
 
 		# Get file path(s) from our cache.
-		$script.ModuleData.DefaultLayoutModification.FilePaths = $script.Config.DefaultLayoutModification.ChildNodes |
-			ForEach-Object {$script.Config.DefaultLayoutModification.$_} | Get-ContentFilePath |
+		$data.DefaultLayoutModification.FilePaths = $xml.Config.DefaultLayoutModification.ChildNodes |
+			ForEach-Object {$xml.Config.DefaultLayoutModification.$_} | Get-ContentFilePath |
 				ForEach-Object {@{LiteralPath = $_; Destination = $dest -f [System.IO.Path]::GetExtension($_)}}
 	}
 	catch
@@ -1478,7 +1309,7 @@ function Invoke-DefaultLayoutModificationPreOps
 function Get-IncorrectDefaultLayoutModifications
 {
 	# Confirm whether start layout is valid by testing whether src/dest hash match.
-	return $script.ModuleData.DefaultLayoutModification.FilePaths | Where-Object {
+	return $data.DefaultLayoutModification.FilePaths | Where-Object {
 		![System.IO.File]::Exists($_.Destination) -or ((Get-FileHash -LiteralPath $_.Values | Select-Object -ExpandProperty Hash -Unique) -isnot [System.String])
 	}
 }
@@ -1522,7 +1353,7 @@ function Confirm-DefaultLayoutModification
 function Remove-DefaultLayoutModification
 {
 	# Remove the file completely.
-	Remove-Item -Path "$($script.ModuleData.DefaultLayoutModification.BaseDirectory)\LayoutModification.*" -Force -Confirm:$false
+	Remove-Item -Path "$($data.DefaultLayoutModification.BaseDirectory)\LayoutModification.*" -Force -Confirm:$false
 	Write-LogEntry -Message "Successfully restored DefaultLayoutModification configuration."
 }
 
@@ -1542,7 +1373,7 @@ function Invoke-DefaultThemePreOps
 	try
 	{
 		# Set value to apply in registry.
-		$script.ModuleData.DefaultTheme.Value = $script.Config.DefaultTheme | Get-ContentFilePath
+		$data.DefaultTheme.Value = $xml.Config.DefaultTheme | Get-ContentFilePath
 	}
 	catch
 	{
@@ -1554,7 +1385,7 @@ function Invoke-DefaultThemePreOps
 function Get-IncorrectDefaultTheme
 {
 	# Return results.
-	return Invoke-DefaultUserRegistryAction -Expression {!$script.ModuleData.DefaultTheme.Value.Equals(($script.ModuleData.DefaultTheme | Get-RegistryDataItemValue))}
+	return Invoke-DefaultUserRegistryAction -Expression {!$data.DefaultTheme.Value.Equals(($data.DefaultTheme | Get-RegistryDataItemValue))}
 }
 
 function Install-DefaultTheme
@@ -1568,7 +1399,7 @@ function Install-DefaultTheme
 	# Get state and repair if needed.
 	if (Get-IncorrectDefaultTheme)
 	{
-		Invoke-DefaultUserRegistryAction -Expression {$script.ModuleData.DefaultTheme | Install-RegistryDataItem} | Out-Null
+		Invoke-DefaultUserRegistryAction -Expression {$data.DefaultTheme | Install-RegistryDataItem} | Out-Null
 		Write-LogEntry -Message "Successfully installed DefaultTheme components."
 	}
 	else
@@ -1595,7 +1426,7 @@ function Confirm-DefaultTheme
 function Remove-DefaultTheme
 {
 	# Just remove the registry components so we don't risk breaking user experiences.
-	Invoke-DefaultUserRegistryAction -Expression {($script.ModuleData.DefaultTheme | Where-Object {$_ | Get-RegistryDataItemValue} | Remove-RegistryDataItem) 6>$null} | Out-Null
+	Invoke-DefaultUserRegistryAction -Expression {($data.DefaultTheme | Where-Object {$_ | Get-RegistryDataItemValue} | Remove-RegistryDataItem) 6>$null} | Out-Null
 	Write-LogEntry -Message "Successfully removed all DefaultTheme registry components."
 }
 
@@ -1615,8 +1446,8 @@ function Invoke-LanguageDefaultsPreOps
 	try
 	{
 		# Get file path from our cache, along with its hash.
-		$script.ModuleData.LanguageDefaults.Source = $script.Config.LanguageDefaults | Get-ContentFilePath
-		$script.ModuleData.LanguageDefaults.FileHash = (Get-FileHash -LiteralPath $script.ModuleData.LanguageDefaults.Source).Hash
+		$data.LanguageDefaults.Source = $xml.Config.LanguageDefaults | Get-ContentFilePath
+		$data.LanguageDefaults.FileHash = (Get-FileHash -LiteralPath $data.LanguageDefaults.Source).Hash
 	}
 	catch
 	{
@@ -1627,8 +1458,8 @@ function Invoke-LanguageDefaultsPreOps
 
 function Test-LanguageDefaultsApplicability
 {
-	return ![System.IO.File]::Exists($script.ModuleData.LanguageDefaults.TagFile) -or
-		!$script.ModuleData.LanguageDefaults.FileHash.Equals([System.IO.File]::ReadAllText($script.ModuleData.LanguageDefaults.TagFile))
+	return ![System.IO.File]::Exists($data.LanguageDefaults.TagFile) -or
+		!$data.LanguageDefaults.FileHash.Equals([System.IO.File]::ReadAllText($data.LanguageDefaults.TagFile))
 }
 
 function Install-LanguageDefaults
@@ -1642,8 +1473,8 @@ function Install-LanguageDefaults
 	# Get state and repair if needed.
 	if (Test-LanguageDefaultsApplicability)
 	{
-		control.exe "intl.cpl,,/f:`"$($script.ModuleData.LanguageDefaults.Source)`"" 2>&1
-		[System.IO.File]::WriteAllText($script.ModuleData.LanguageDefaults.TagFile, $script.ModuleData.LanguageDefaults.FileHash)
+		control.exe "intl.cpl,,/f:`"$($data.LanguageDefaults.Source)`"" 2>&1
+		[System.IO.File]::WriteAllText($data.LanguageDefaults.TagFile, $data.LanguageDefaults.FileHash)
 		Write-LogEntry -Message "Successfully installed LanguageDefaults unattend file."
 	}
 	else
@@ -1669,7 +1500,7 @@ function Confirm-LanguageDefaults
 
 function Remove-LanguageDefaults
 {
-	Remove-Item -LiteralPath $script.ModuleData.LanguageDefaults.TagFile -Force -Confirm:$false -ErrorAction Ignore
+	Remove-Item -LiteralPath $data.LanguageDefaults.TagFile -Force -Confirm:$false -ErrorAction Ignore
 	Write-LogEntry -Message "Successfully removed LanguageDefaults tag file."
 }
 
@@ -1689,8 +1520,8 @@ function Invoke-OemInformationPreOps
 	try
 	{
 		# Calculate some properties for future usage.
-		$script.ModuleData.OemInformation.Logo = $script.Config.OemInformation.Logo | Get-ContentFilePath
-		$script.ModuleData.OemInformation.Model = (Get-CimInstance -ClassName Win32_ComputerSystem).Model
+		$data.OemInformation.Logo = $xml.Config.OemInformation.Logo | Get-ContentFilePath
+		$data.OemInformation.Model = (Get-CimInstance -ClassName Win32_ComputerSystem).Model
 	}
 	catch
 	{
@@ -1702,12 +1533,12 @@ function Invoke-OemInformationPreOps
 function Get-IncorrectOemInformation
 {
 	# Get all properties from the registry.
-	$itemprops = Get-ItemProperty -LiteralPath ($regbase = $script.ModuleData.OemInformation.RegistryBase) -ErrorAction Ignore
+	$itemprops = Get-ItemProperty -LiteralPath ($regbase = $data.OemInformation.RegistryBase) -ErrorAction Ignore
 
 	# Return test results.
-	return ($script.Config.OemInformation.ChildNodes.LocalName + 'Model').ForEach({
+	return ($xml.Config.OemInformation.ChildNodes.LocalName + 'Model').ForEach({
 		# Get calculated value from script's storage if present, otherwise use XML provided source.
-		$value = if ($script.ModuleData.OemInformation.ContainsKey($_)) {$script.ModuleData.OemInformation.$_} else {$script.Config.OemInformation.$_}
+		$value = if ($data.OemInformation.ContainsKey($_)) {$data.OemInformation.$_} else {$xml.Config.OemInformation.$_}
 
 		# Output objects for the properties that need correction.
 		if (!$itemprops -or !$value.Equals(($itemprops | Select-Object -ExpandProperty $_ -ErrorAction Ignore)))
@@ -1755,7 +1586,7 @@ function Confirm-OemInformation
 
 function Remove-OemInformation
 {
-	Remove-Item -LiteralPath $script.ModuleData.OemInformation.RegistryBase -Force -Confirm:$false -ErrorAction Ignore
+	Remove-Item -LiteralPath $data.OemInformation.RegistryBase -Force -Confirm:$false -ErrorAction Ignore
 	Write-LogEntry -Message "Successfully removed all OemInformation values."
 }
 
@@ -1769,12 +1600,12 @@ function Remove-OemInformation
 function Get-IncorrectRegistrationInfo
 {
 	# Get item properties and store.
-	$itemprops = Get-ItemProperty -LiteralPath ($regbase = $script.ModuleData.RegistrationInfo.RegistryBase)
+	$itemprops = Get-ItemProperty -LiteralPath ($regbase = $data.RegistrationInfo.RegistryBase)
 
 	# Return any mismatches.
-	return $script.Config.RegistrationInfo.ChildNodes.LocalName.ForEach({
-		if (!$itemprops -or !$script.Config.RegistrationInfo.($_).Equals(($itemprops | Select-Object -ExpandProperty $_ -ErrorAction Ignore))) {
-			[pscustomobject]@{LiteralPath = $regbase; Name = $_; Value = $script.Config.RegistrationInfo.$_; PropertyType = 'String'}
+	return $xml.Config.RegistrationInfo.ChildNodes.LocalName.ForEach({
+		if (!$itemprops -or !$xml.Config.RegistrationInfo.($_).Equals(($itemprops | Select-Object -ExpandProperty $_ -ErrorAction Ignore))) {
+			[pscustomobject]@{LiteralPath = $regbase; Name = $_; Value = $xml.Config.RegistrationInfo.$_; PropertyType = 'String'}
 		}
 	})
 }
@@ -1810,7 +1641,7 @@ function Confirm-RegistrationInfo
 
 function Remove-RegistrationInfo
 {
-	$path = $script.ModuleData.RegistrationInfo.RegistryBase; $Name = $script.Config.RegistrationInfo.ChildNodes.LocalName
+	$path = $data.RegistrationInfo.RegistryBase; $Name = $xml.Config.RegistrationInfo.ChildNodes.LocalName
 	Remove-ItemProperty -LiteralPath $path -Name $Name -Force -Confirm:$false -ErrorAction Ignore
 	Write-LogEntry -Message "Successfully removed all RegistrationInfo values."
 }
@@ -1824,7 +1655,7 @@ function Remove-RegistrationInfo
 
 function Get-IncorrectRegistryData
 {
-	return $script.Config.RegistryData.Item | Where-Object {($_ | Get-RegistryDataItemValue) -ne $_.Value}
+	return $xml.Config.RegistryData.Item | Where-Object {($_ | Get-RegistryDataItemValue) -ne $_.Value}
 }
 
 function Install-RegistryData
@@ -1837,7 +1668,7 @@ function Install-RegistryData
 	{
 		$incorrect | Install-RegistryDataItem
 		Write-LogEntry -Message "Successfully installed all RegistryData values."
-		$script.ExitCode = 3010
+		Update-ExitCode -Value 3010
 	}
 	else
 	{
@@ -1860,7 +1691,7 @@ function Confirm-RegistryData
 function Remove-RegistryData
 {
 	# Remove each item and the key if the item was the last.
-	if (($script.Config.RegistryData.Item | Where-Object {$_ | Get-RegistryDataItemValue} | Remove-RegistryDataItem) 6>&1) {$script.ExitCode = 3010}
+	if (($xml.Config.RegistryData.Item | Where-Object {$_ | Get-RegistryDataItemValue} | Remove-RegistryDataItem) 6>&1) {Update-ExitCode -Value 3010}
 	Write-LogEntry -Message "Successfully removed all RegistryData values."
 }
 
@@ -1874,10 +1705,10 @@ function Remove-RegistryData
 function Get-RemoveAppsState
 {
 	return [pscustomobject]@{
-		Installed = Get-AppxPackage -AllUsers | Where-Object {$script.Config.RemoveApps.App -contains $_.Name} | ForEach-Object {
-			if ($script.ModuleData.RemoveApps.MandatoryApps -contains $_.Name)
+		Installed = Get-AppxPackage -AllUsers | Where-Object {$xml.Config.RemoveApps.App -contains $_.Name} | ForEach-Object {
+			if ($data.RemoveApps.MandatoryApps -contains $_.Name)
 			{
-				Write-Warning -Message "Cannot uninstall app '$($_.Name)' as it is considered mandatory by $($script.Name)."
+				Write-Warning -Message "Cannot uninstall app '$($_.Name)' as it is considered mandatory."
 			}
 			elseif ($_.NonRemovable)
 			{
@@ -1888,10 +1719,10 @@ function Get-RemoveAppsState
 				$_
 			}
 		}
-		Provisioned = Get-AppxProvisionedPackage -Online | Where-Object {$script.Config.RemoveApps.App -contains $_.DisplayName} | ForEach-Object {
-			if ($script.ModuleData.RemoveApps.MandatoryApps -contains $_.DisplayName)
+		Provisioned = Get-AppxProvisionedPackage -Online | Where-Object {$xml.Config.RemoveApps.App -contains $_.DisplayName} | ForEach-Object {
+			if ($data.RemoveApps.MandatoryApps -contains $_.DisplayName)
 			{
-				Write-Warning -Message "Cannot deprovision app '$($_.DisplayName)' as it is considered mandatory by $($script.Name)."
+				Write-Warning -Message "Cannot deprovision app '$($_.DisplayName)' as it is considered mandatory."
 			}
 			else
 			{
@@ -1925,7 +1756,7 @@ function Install-RemoveApps
 		$apps.Installed | Remove-RemoveAppInstallation
 		$apps.Provisioned | Remove-RemoveAppProvisionment
 		Write-LogEntry -Message "Successfully processed RemoveApps list."
-		$script.ExitCode = 3010
+		Update-ExitCode -Value 3010
 	}
 	else
 	{
@@ -1966,7 +1797,7 @@ function Get-SystemDriveLockdownBoolean
 {
 	# XML stores everything as a string and .NET's XML parser does not attempt to coerce types upon parsing.
 	# This cast to integer is safe here as the value type on 'Enabled' is `nonNegativeInteger` and not `boolean` where it may be true/false.
-	return [System.Boolean][System.UInt32]$script.Config.SystemDriveLockdown.Enabled
+	return [System.Boolean][System.UInt32]$xml.Config.SystemDriveLockdown.Enabled
 }
 
 function Test-SystemDriveLockdownEnable
@@ -1981,8 +1812,8 @@ function Test-SystemDriveLockdownDisable
 
 function Restore-SystemDriveLockdownDefaults
 {
-	[System.Void](icacls.exe $env:SystemDrive\ /grant "*$($script.ModuleData.SystemDriveLockdown.SID):(OI)(CI)(IO)(M)" 2>&1)
-	[System.Void](icacls.exe $env:SystemDrive\ /grant "*$($script.ModuleData.SystemDriveLockdown.SID):(AD)" 2>&1)
+	[System.Void](icacls.exe $env:SystemDrive\ /grant "*$($data.SystemDriveLockdown.SID):(OI)(CI)(IO)(M)" 2>&1)
+	[System.Void](icacls.exe $env:SystemDrive\ /grant "*$($data.SystemDriveLockdown.SID):(AD)" 2>&1)
 }
 
 function Install-SystemDriveLockdown
@@ -1993,7 +1824,7 @@ function Install-SystemDriveLockdown
 	# Get state and repair if needed.
 	if (Test-SystemDriveLockdownEnable)
 	{
-		[System.Void](icacls.exe $env:SystemDrive\ /remove:g *$($script.ModuleData.SystemDriveLockdown.SID) 2>&1)
+		[System.Void](icacls.exe $env:SystemDrive\ /remove:g *$($data.SystemDriveLockdown.SID) 2>&1)
 		Write-LogEntry -Message "Successfully enabled SystemDriveLockdown component."
 	}
 	elseif (Test-SystemDriveLockdownDisable)
@@ -2051,7 +1882,7 @@ filter Convert-SystemShortcutsToComProperties
 
 	# Get properties for the shortcut type we're processing.
 	$scext = [System.IO.Path]::GetExtension($hash.FullName)
-	$props = $script.ModuleData.SystemShortcuts.ShortcutProperties.$scext
+	$props = $data.SystemShortcuts.ShortcutProperties.$scext
 
 	# We need to expand variables and other things from the source.
 	$_.PSObject.Properties.Where({$props.Contains($_.Name)}).ForEach({
@@ -2085,8 +1916,8 @@ filter Convert-SystemShortcutsToComProperties
 function Get-IncorrectSystemShortcuts
 {
 	# Iterate each shortcut and return objects for amendment to the pipeline.
-	$script.Config.SystemShortcuts.Shortcut | Convert-SystemShortcutsToComProperties | Where-Object {
-		$shortcut = $script.WScriptShell.CreateShortcut($_.FullName)
+	$xml.Config.SystemShortcuts.Shortcut | Convert-SystemShortcutsToComProperties | Where-Object {
+		$shortcut = $wsShell.CreateShortcut($_.FullName)
 		$_.PSObject.Properties.Where({$_.Value -ne $shortcut.($_.Name)})
 	}
 }
@@ -2096,7 +1927,7 @@ filter Sync-SystemShortcuts
 	# Update all properties and save out shortcut.
 	$_.PSObject.Properties.Where({!$_.Name.Equals('FullName')}).ForEach({
 		begin {
-			$shortcut = $script.WScriptShell.CreateShortcut($_.FullName)
+			$shortcut = $wsShell.CreateShortcut($_.FullName)
 		}
 		process {
 			$shortcut.($_.Name) = $_.Value
@@ -2140,7 +1971,7 @@ function Confirm-SystemShortcuts
 function Remove-SystemShortcuts
 {
 	# Remove each shortcut, ignoring errors as the shortcut might have already been removed.
-	$script.Config.SystemShortcuts.Shortcut | Get-SystemShortcutsFilePath | Remove-Item -Force -Confirm:$false -ErrorAction Ignore
+	$xml.Config.SystemShortcuts.Shortcut | Get-SystemShortcutsFilePath | Remove-Item -Force -Confirm:$false -ErrorAction Ignore
 	Write-LogEntry -Message "Successfully removed all SystemShortcuts."
 }
 
@@ -2156,8 +1987,8 @@ function Get-WindowsCapabilitiesState
 	# Get current system capabilities and install/remove data.
 	$capabilities = Get-WindowsCapability -Online
 	$regexMatch = '^(Installed|InstallPending)$'
-	$toInstall = $script.Config.WindowsCapabilities.Capability | Where-Object {$_.Action.Equals('Install')} | Select-Object -ExpandProperty '#text'
-	$toRemove = $script.Config.WindowsCapabilities.Capability | Where-Object {$_.Action.Equals('Remove')} | Select-Object -ExpandProperty '#text'
+	$toInstall = $xml.Config.WindowsCapabilities.Capability | Where-Object {$_.Action.Equals('Install')} | Select-Object -ExpandProperty '#text'
+	$toRemove = $xml.Config.WindowsCapabilities.Capability | Where-Object {$_.Action.Equals('Remove')} | Select-Object -ExpandProperty '#text'
 
 	# Get capability states and return to the pipeline.
 	return [pscustomobject]@{
@@ -2189,7 +2020,7 @@ function Install-WindowsCapabilities
 		$capabilities.Installed | Remove-ListedWindowsCapability
 		$capabilities.Uninstalled | Install-ListedWindowsCapability
 		Write-LogEntry -Message "Successfully processed WindowsCapabilities configuration."
-		$script.ExitCode = 3010
+		Update-ExitCode -Value 3010
 	}
 	else
 	{
@@ -2230,8 +2061,8 @@ function Get-WindowsOptionalFeaturesState
 {
 	# Get current system features and install/remove data.
 	$features = Get-WindowsOptionalFeature -Online
-	$toEnable = $script.Config.WindowsOptionalFeatures.Feature | Where-Object {$_.Action.Equals('Enable')} | Select-Object -ExpandProperty '#text'
-	$toDisable = $script.Config.WindowsOptionalFeatures.Feature | Where-Object {$_.Action.Equals('Disable')} | Select-Object -ExpandProperty '#text'
+	$toEnable = $xml.Config.WindowsOptionalFeatures.Feature | Where-Object {$_.Action.Equals('Enable')} | Select-Object -ExpandProperty '#text'
+	$toDisable = $xml.Config.WindowsOptionalFeatures.Feature | Where-Object {$_.Action.Equals('Disable')} | Select-Object -ExpandProperty '#text'
 
 	# Get capability states and return to the pipeline.
 	return [pscustomobject]@{
@@ -2263,7 +2094,7 @@ function Install-WindowsOptionalFeatures
 		$features.Enabled | Disable-ListedWindowsOptionalFeature
 		$features.Disabled | Enable-ListedWindowsOptionalFeature
 		Write-LogEntry -Message "Successfully processed WindowsOptionalFeatures configuration."
-		$script.ExitCode = 3010
+		Update-ExitCode -Value 3010
 	}
 	else
 	{
@@ -2302,28 +2133,28 @@ function Remove-WindowsOptionalFeatures
 
 try
 {
-	Open-Log
-	Initialize-ModuleData
-	Import-DesiredStateConfig
-	Invoke-DesiredStateOperations
+	# Open log file and commence operations.
+	$olfParams = @{
+		Cmdlet = $PSCmdlet
+		Action = $(if ($Mode) {$Mode} else {$PSCmdlet.ParameterSetName})
+		Discriminator = $Discriminator
+	}
+	Open-LogFile @olfParams
+	if ($output = Invoke-DesiredStateOperations -Action $olfParams.Action) {throw $output}
 }
 catch
 {
-	# Don't prefix TestResults output from Confirm operations.
-	if ($script.ContainsKey('TestResults') -and $_.Exception.Message.Equals($script.TestResults))
+	# Process the caught error message.
+	$_ | Invoke-GlobalErrorHandler
+
+	# Add an extra divider when throwing test results.
+	if ((Get-Variable -Name output -ErrorAction Ignore) -and $_.Exception.Message.Equals($output))
 	{
-		$script.TestResults | Write-StdErrMessage
-		$script.ExitCode = 1618
+		Write-LogDivider
 	}
-	else
-	{
-		$_ | Out-FriendlyErrorMessage | Write-StdErrMessage
-		$script.ExitCode = 1603
-	}
-	Write-LogEntry -Message "$($script.Divider)`nPlease review transcription log and try again."
 }
 finally
 {
-	Close-Log
-	exit $script.ExitCode
+	# Always ensure this is called to finalise the script.
+	Close-LogFile
 }
