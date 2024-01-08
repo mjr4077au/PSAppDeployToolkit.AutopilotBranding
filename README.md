@@ -95,3 +95,7 @@ An example setup via an XML configuration file would be:
 </Config>
 ```
 Each element within `<Config></Config>` is supported by a submodule containing code to handle the element as required. The config is supported by a schema that governs the provided data.
+## Example Log Files
+* [Installed.txt](https://github.com/TheMissingLinkGithub/Install-DesiredStateManagement.ps1/files/13727435/Installed.txt)
+* [Installing.txt](https://github.com/TheMissingLinkGithub/Install-DesiredStateManagement.ps1/files/13727430/Installing.txt)
+* [Not Installed.txt](https://github.com/TheMissingLinkGithub/Install-DesiredStateManagement.ps1/files/13727431/Not.Installed.txt)
