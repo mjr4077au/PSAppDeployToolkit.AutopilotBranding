@@ -1059,7 +1059,7 @@ function Invoke-ContentPreOps
 	}
 	catch
 	{
-		Write-Warning -Message "Unable to confirm Content state. $($_.Exception.Message)"
+		Write-LogEntry -Message "Unable to confirm Content state. $($_.Exception.Message)" -StdErr -Prefix
 		return 1
 	}
 }
@@ -1162,7 +1162,7 @@ function Invoke-DefaultAppAssociationsPreOps
 	}
 	catch
 	{
-		Write-Warning -Message "Unable to confirm DefaultAppAssociations state. $($_.Exception.Message)"
+		Write-LogEntry -Message "Unable to confirm DefaultAppAssociations state. $($_.Exception.Message)" -StdErr -Prefix
 		return 1
 	}
 }
@@ -1230,7 +1230,7 @@ function Invoke-DefaultStartLayoutPreOps
 	# Warn and bomb out if we're not on Windows 10.
 	if (!(Get-WindowsNameVersion).Equals('10'))
 	{
-		Write-Warning -Message "The DefaultStartLayout element is only supported on Windows 10."
+		Write-LogEntry -Message "The DefaultStartLayout element is only supported on Windows 10." -Warning -Prefix
 		return 1
 	}
 
@@ -1242,7 +1242,7 @@ function Invoke-DefaultStartLayoutPreOps
 	}
 	catch
 	{
-		Write-Warning -Message "Unable to confirm DefaultStartLayout state. $($_.Exception.Message)"
+		Write-LogEntry -Message "Unable to confirm DefaultStartLayout state. $($_.Exception.Message)" -StdErr -Prefix
 		return 1
 	}
 }
@@ -1325,7 +1325,7 @@ function Invoke-DefaultLayoutModificationPreOps
 	# Only support this on Windows 11.
 	if (!(Get-WindowsNameVersion).Equals('11'))
 	{
-		Write-Warning -Message "The DefaultLayoutModification element is only supported on Windows 11."
+		Write-LogEntry -Message "The DefaultLayoutModification element is only supported on Windows 11." -Warning -Prefix
 		return 1
 	}
 
@@ -1342,7 +1342,7 @@ function Invoke-DefaultLayoutModificationPreOps
 	}
 	catch
 	{
-		Write-Warning -Message "Unable to confirm DefaultLayoutModification state. $($_.Exception.Message)"
+		Write-LogEntry -Message "Unable to confirm DefaultLayoutModification state. $($_.Exception.Message)" -StdErr -Prefix
 		return 1
 	}
 }
@@ -1419,7 +1419,7 @@ function Invoke-DefaultThemePreOps
 	}
 	catch
 	{
-		Write-Warning -Message "Unable to confirm DefaultTheme state. $($_.Exception.Message)"
+		Write-LogEntry -Message "Unable to confirm DefaultTheme state. $($_.Exception.Message)" -StdErr -Prefix
 		return 1
 	}
 }
@@ -1493,7 +1493,7 @@ function Invoke-LanguageDefaultsPreOps
 	}
 	catch
 	{
-		Write-Warning -Message "Unable to confirm LanguageDefaults state. $($_.Exception.Message)"
+		Write-LogEntry -Message "Unable to confirm LanguageDefaults state. $($_.Exception.Message)" -StdErr -Prefix
 		return 1
 	}
 }
@@ -1567,7 +1567,7 @@ function Invoke-OemInformationPreOps
 	}
 	catch
 	{
-		Write-Warning -Message "Unable to confirm OemInformation state. $($_.Exception.Message)"
+		Write-LogEntry -Message "Unable to confirm OemInformation state. $($_.Exception.Message)" -StdErr -Prefix
 		return 1
 	}
 }
@@ -1750,11 +1750,11 @@ function Get-RemoveAppsState
 		Installed = Get-AppxPackage -AllUsers | Where-Object {$xml.Config.RemoveApps.App -contains $_.Name} | ForEach-Object {
 			if ($data.RemoveApps.MandatoryApps -contains $_.Name)
 			{
-				Write-Warning -Message "Cannot uninstall app '$($_.Name)' as it is considered mandatory."
+				Write-LogEntry -Message "Cannot uninstall app '$($_.Name)' as it is considered mandatory." -Warning -Prefix
 			}
 			elseif ($_.NonRemovable)
 			{
-				Write-Warning -Message "Cannot uninstall app '$($_.Name)' as it is flagged as non-removable by the system."
+				Write-LogEntry -Message "Cannot uninstall app '$($_.Name)' as it is flagged as non-removable by the system." -Warning -Prefix
 			}
 			elseif ($_.PackageUserInformation.ForEach({$_.ToString()}) -match 'Installed$')
 			{
@@ -1764,7 +1764,7 @@ function Get-RemoveAppsState
 		Provisioned = Get-AppxProvisionedPackage -Online | Where-Object {$xml.Config.RemoveApps.App -contains $_.DisplayName} | ForEach-Object {
 			if ($data.RemoveApps.MandatoryApps -contains $_.DisplayName)
 			{
-				Write-Warning -Message "Cannot deprovision app '$($_.DisplayName)' as it is considered mandatory."
+				Write-LogEntry -Message "Cannot deprovision app '$($_.DisplayName)' as it is considered mandatory." -Warning -Prefix
 			}
 			else
 			{
@@ -1825,7 +1825,7 @@ function Confirm-RemoveApps
 
 function Remove-RemoveApps
 {
-	Write-Warning -Message "Removal/reversal of RemoveApps configuration is not supported."
+	Write-LogEntry -Message "Removal/reversal of RemoveApps configuration is not supported." -Warning -Prefix
 }
 
 
@@ -2089,7 +2089,7 @@ function Confirm-WindowsCapabilities
 
 function Remove-WindowsCapabilities
 {
-	Write-Warning -Message "Removal/reversal of WindowsCapabilities configuration is not supported."
+	Write-LogEntry -Message "Removal/reversal of WindowsCapabilities configuration is not supported." -Warning -Prefix
 }
 
 
@@ -2163,7 +2163,7 @@ function Confirm-WindowsOptionalFeatures
 
 function Remove-WindowsOptionalFeatures
 {
-	Write-Warning -Message "Removal/reversal of WindowsOptionalFeatures configuration is not supported."
+	Write-LogEntry -Message "Removal/reversal of WindowsOptionalFeatures configuration is not supported." -Warning -Prefix
 }
 
 
