@@ -21,6 +21,8 @@ These customizations are currently supported:
 - Ability to enable/disable Windows Features. Such items are Windows PowerShell 2.0 engine, Telnet client, etc.
 
 ## Requirements and Dependencies
+This script depends on TMLSTL v5.3 or greater. Please ensure the latest version of the module is deployed prior to executing this script. TMLSTL can be downloaded from: https://github.com/TheMissingLinkGithub/TMLSTL/releases.
+
 This uses the Microsoft Win32 Content Prep Tool (a.k.a. IntuneWinAppUtil.exe, available from https://github.com/Microsoft/Microsoft-Win32-Content-Prep-Tool) to package the PowerShell script and related files into a .intunewin file that can be uploaded to Intune as a Win32 app.
 
 ## Example Config
