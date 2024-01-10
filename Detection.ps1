@@ -37,7 +37,7 @@ This script detects whether a particular piece of software is installed or not.
 #>
 
 # Define variables for script.
-$scrVer = (Test-ScriptFileInfo -LiteralPath "$Env:SystemRoot\system32\Install-DesiredStateManagement.ps1" -ErrorAction Stop).Version
+$scrVer = (Test-ScriptFileInfo -LiteralPath "$Env:SystemRoot\system32\Invoke-DesiredStateManagementOperation.ps1" -ErrorAction Stop).Version
 $minVer = (Test-ScriptFileInfo -LiteralPath $MyInvocation.MyCommand.Source -ErrorAction Stop).Version
 
 # Check whether script is the minimum version.

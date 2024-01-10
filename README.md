@@ -1,4 +1,4 @@
-# Install-DesiredStateManagement.ps1
+# Invoke-DesiredStateManagementOperation.ps1
 Inspired by Michael Niehaus' "AutopilotBranding" toolkit, this toolkit is specifically designed to be used to install a set of system baseline defaults for workstations, extending from languages, removal of built-in apps/features, user defaults via Active Setup, and more.
 
 ## Capabilities

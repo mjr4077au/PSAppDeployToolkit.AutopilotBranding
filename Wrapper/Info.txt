@@ -1,4 +1,4 @@
-Invoke-DesiredStateManagementOperation.ps1
+Install-DesiredStateManagement.ps1
 
 
 Desired State Management by The Missing Link is an automated solution to pre-configure workstations via schema-validated XML runlist to automate app removals, first-time logon setup for users, and more.

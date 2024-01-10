@@ -33,7 +33,7 @@
 <#
 
 .DESCRIPTION
-This script install/removes/validates Desired State within a PC, wrapping around Install-DesiredStateManagement.ps1.
+This script install/removes/validates Desired State within a PC, wrapping around Invoke-DesiredStateManagementOperation.ps1.
 
 #>
 
@@ -53,7 +53,7 @@ Set-PSDebug -Strict
 Set-StrictMode -Version Latest
 
 # Set required variables for install operation.
-$scrName = 'Invoke-DesiredStateManagementOperation.ps1'
+$scrName = 'Install-DesiredStateManagement.ps1'
 $scrMode = $PSCmdlet.ParameterSetName
 
 # Store list of hashes for all content files. Set this variable to null if we're not processing content.
@@ -81,7 +81,7 @@ $srcHashes = @(
 	'88C3CADEFD320D8371297CFF060937D6FFA5F72CDFB2AC8B0DBD039E61134DC8'
 )
 
-# Config to load into Install-DesiredStateManagement.ps1.
+# Config to load into Invoke-DesiredStateManagementOperation.ps1.
 $config = @"
 <Config Version="1.0">
 	<Content>
@@ -409,6 +409,6 @@ if (!$scrMode.Equals('Remove') -and $srcHashes -and $content -and !$xml.Config.C
 	}
 }
 
-# With content potentially pre-seeded, finally call Install-DesiredStateManagement.ps1 and do underlying operation.
-Install-DesiredStateManagement.ps1 -Mode $PSCmdlet.ParameterSetName -Config $config
+# With content potentially pre-seeded, finally call Invoke-DesiredStateManagementOperation.ps1 and do underlying operation.
+Invoke-DesiredStateManagementOperation.ps1 -Mode $PSCmdlet.ParameterSetName -Config $config
 exit $LASTEXITCODE

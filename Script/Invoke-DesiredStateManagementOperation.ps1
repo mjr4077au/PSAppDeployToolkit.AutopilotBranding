@@ -138,26 +138,26 @@ Instructs the script to operate in one of the modes supported by the switch para
 Specifies the file path/URI, or raw XML to use as the configuration source for the script.
 
 .EXAMPLE
-powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Install-DesiredStateManagement.ps1
+powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Invoke-DesiredStateManagementOperation.ps1
 
 .EXAMPLE
-powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Install-DesiredStateManagement.ps1 -Install
+powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Invoke-DesiredStateManagementOperation.ps1 -Install
 
 .EXAMPLE
-powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Install-DesiredStateManagement.ps1 -Remove
+powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Invoke-DesiredStateManagementOperation.ps1 -Remove
 
 .EXAMPLE
-powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Install-DesiredStateManagement.ps1 -Mode Install
+powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Invoke-DesiredStateManagementOperation.ps1 -Mode Install
 
 .EXAMPLE
-powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Install-DesiredStateManagement.ps1 -Mode Install -Config 'C:\Path\To\Config.xml'
+powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Invoke-DesiredStateManagementOperation.ps1 -Mode Install -Config 'C:\Path\To\Config.xml'
 
 .INPUTS
-None. You cannot pipe objects to Install-DesiredStateManagement.ps1.
+None. You cannot pipe objects to Invoke-DesiredStateManagementOperation.ps1.
 
 .OUTPUTS
-stdout stream. Install-DesiredStateManagement.ps1 returns a log string via Write-Host that can be piped.
-stderr stream. Install-DesiredStateManagement.ps1 writes all error text to stderr for catching externally to PowerShell if required.
+stdout stream. Invoke-DesiredStateManagementOperation.ps1 returns a log string via Write-Host that can be piped.
+stderr stream. Invoke-DesiredStateManagementOperation.ps1 writes all error text to stderr for catching externally to PowerShell if required.
 
 .NOTES
 *Changelog*
@@ -305,7 +305,7 @@ Set-StrictMode -Version Latest
 
 # Define script properties.
 $script = @{
-	Name = 'Install-DesiredStateManagement.ps1'  # Hard-coded as using script as detection script will mangle the filename.
+	Name = 'Invoke-DesiredStateManagementOperation.ps1'  # Hard-coded as using script as detection script will mangle the filename.
 	Info = Test-ScriptFileInfo -LiteralPath $MyInvocation.MyCommand.Source
 	LogDiscriminator = [System.String]::Empty
 	Action = if ($Mode) {$Mode} else {$PSCmdlet.ParameterSetName}
