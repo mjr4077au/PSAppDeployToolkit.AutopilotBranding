@@ -2190,9 +2190,10 @@ catch
 	$_ | Invoke-GlobalErrorHandler
 
 	# Add an extra divider when throwing test results.
-	if ((Get-Variable -Name output -ErrorAction Ignore) -and $_.Exception.Message.Equals($output))
+	if ($_.Exception.Message.Equals((Get-Variable -Name output -ValueOnly -ErrorAction Ignore)))
 	{
 		Write-LogDivider
+		Write-LogEntry -Message "Please execute this script again with '-Install' to repair the reported state issues."
 	}
 }
 finally
