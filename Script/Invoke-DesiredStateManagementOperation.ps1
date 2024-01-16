@@ -1338,7 +1338,7 @@ function Invoke-DefaultLayoutModificationPreOps
 		# Get file path(s) from our cache.
 		$data.DefaultLayoutModification.FilePaths = $xml.Config.DefaultLayoutModification.ChildNodes |
 			ForEach-Object {$xml.Config.DefaultLayoutModification.$_} | Get-ContentFilePath |
-				ForEach-Object {@{LiteralPath = $_; Destination = $dest -f [System.IO.Path]::GetExtension($_)}}
+				ForEach-Object {@{LiteralPath = $_; Destination = [System.String]::Format($dest, [System.IO.Path]::GetExtension($_))}}
 	}
 	catch
 	{
