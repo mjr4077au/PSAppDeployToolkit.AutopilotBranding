@@ -1061,7 +1061,7 @@ function Invoke-ContentPreOps
 			# Download the source content and extract it for mapping and copying to destination.
 			Invoke-WebRequest -UseBasicParsing -Uri $xml.Config.Content.Source -OutFile $data.Content.DownloadFile
 			Expand-Archive -LiteralPath $data.Content.DownloadFile -DestinationPath $data.Content.TemporaryDir -Force
-			$data.Content.DataMap = Out-FileHashDataMap -LiteralPath $data.Content.TemporaryDir
+			$data.Content.Add('DataMap', (Out-FileHashDataMap -LiteralPath $data.Content.TemporaryDir))
 		}
 		else
 		{
@@ -1070,11 +1070,11 @@ function Invoke-ContentPreOps
 			{
 				$data.Content.TemporaryDir = $Script:PSBoundParameters['ContentPath']
 			}
-			$data.Content.DataMap = $Script:PSBoundParameters['DataMap']
+			$data.Content.Add('DataMap', $Script:PSBoundParameters['DataMap'])
 		}
 
 		# Set the destination path based off the incoming content, expanding any environment variables as required.
-		$data.Content.Destination = [System.Environment]::ExpandEnvironmentVariables($xml.Config.Content.Destination)
+		$data.Content.Add('Destination', [System.Environment]::ExpandEnvironmentVariables($xml.Config.Content.Destination))
 	}
 	catch
 	{
@@ -1173,8 +1173,8 @@ function Invoke-DefaultAppAssociationsPreOps
 	try
 	{
 		# Get file path from our cache, along with its hash.
-		$data.DefaultAppAssociations.Source = $xml.Config.DefaultAppAssociations | Get-ContentFilePath
-		$data.DefaultAppAssociations.FileHash = $data.Content.DataMap[$xml.Config.DefaultAppAssociations]
+		$data.DefaultAppAssociations.Add('Source', ($xml.Config.DefaultAppAssociations | Get-ContentFilePath))
+		$data.DefaultAppAssociations.Add('FileHash', $data.Content.DataMap[$xml.Config.DefaultAppAssociations])
 	}
 	catch
 	{
@@ -1254,7 +1254,7 @@ function Invoke-DefaultStartLayoutPreOps
 	try
 	{
 		# Get file path from our cache.
-		$data.DefaultStartLayout.Source = $xml.Config.DefaultStartLayout | Get-ContentFilePath
+		$data.DefaultStartLayout.Add('Source', ($xml.Config.DefaultStartLayout | Get-ContentFilePath))
 	}
 	catch
 	{
@@ -1352,9 +1352,12 @@ function Invoke-DefaultLayoutModificationPreOps
 		$dest = "$($data.DefaultLayoutModification.BaseDirectory)\$($data.DefaultLayoutModification.FileNameBase){0}"
 
 		# Get file path(s) from our cache.
-		$data.DefaultLayoutModification.FilePaths = $xml.Config.DefaultLayoutModification.ChildNodes |
+		$filePaths = $xml.Config.DefaultLayoutModification.ChildNodes |
 			ForEach-Object {$xml.Config.DefaultLayoutModification.$_} | Get-ContentFilePath |
 				ForEach-Object {@{LiteralPath = $_; Destination = [System.String]::Format($dest, [System.IO.Path]::GetExtension($_))}}
+
+		# Add file path(s) into our running data.
+		$data.DefaultLayoutModification.Add('FilePaths', $filePaths)
 	}
 	catch
 	{
@@ -1431,7 +1434,7 @@ function Invoke-DefaultThemePreOps
 	try
 	{
 		# Set value to apply in registry.
-		$data.DefaultTheme.Value = $xml.Config.DefaultTheme | Get-ContentFilePath
+		$data.DefaultTheme.Add('Value', ($xml.Config.DefaultTheme | Get-ContentFilePath))
 	}
 	catch
 	{
@@ -1504,8 +1507,8 @@ function Invoke-LanguageDefaultsPreOps
 	try
 	{
 		# Get file path from our cache, along with its hash.
-		$data.LanguageDefaults.Source = $xml.Config.LanguageDefaults | Get-ContentFilePath
-		$data.LanguageDefaults.FileHash = $data.Content.DataMap[$xml.Config.LanguageDefaults]
+		$data.LanguageDefaults.Add('Source', ($xml.Config.LanguageDefaults | Get-ContentFilePath))
+		$data.LanguageDefaults.Add('FileHash', $data.Content.DataMap[$xml.Config.LanguageDefaults])
 	}
 	catch
 	{
@@ -1578,8 +1581,8 @@ function Invoke-OemInformationPreOps
 	try
 	{
 		# Calculate some properties for future usage.
-		$data.OemInformation.Logo = $xml.Config.OemInformation.Logo | Get-ContentFilePath
-		$data.OemInformation.Model = (Get-CimInstance -ClassName Win32_ComputerSystem).Model
+		$data.OemInformation.Add('Logo', ($xml.Config.OemInformation.Logo | Get-ContentFilePath))
+		$data.OemInformation.Add('Model', (Get-CimInstance -ClassName Win32_ComputerSystem).Model)
 	}
 	catch
 	{
@@ -1699,8 +1702,8 @@ function Confirm-RegistrationInfo
 
 function Remove-RegistrationInfo
 {
-	$path = $data.RegistrationInfo.RegistryBase; $Name = $xml.Config.RegistrationInfo.ChildNodes.LocalName
-	Remove-ItemProperty -LiteralPath $path -Name $Name -Force -Confirm:$false -ErrorAction Ignore
+	$ripParams = @{LiteralPath = $data.RegistrationInfo.RegistryBase; Name = $xml.Config.RegistrationInfo.ChildNodes.LocalName}
+	Remove-ItemProperty @ripParams -Force -Confirm:$false -ErrorAction Ignore
 	Write-LogEntry -Message "Successfully removed all RegistrationInfo values."
 }
 
