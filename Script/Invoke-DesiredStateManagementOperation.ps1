@@ -124,6 +124,15 @@ Instructs the script to operate in one of the modes supported by the switch para
 .PARAMETER Config
 Specifies the file path/URI, or raw XML to use as the configuration source for the script.
 
+.PARAMETER ContentPath
+Specifies the path to Content when not hosting it in a HTTPS location.
+
+.PARAMETER DataMap
+Specifies the file/hash map of Content when not hosting it in a HTTPS location.
+
+.PARAMETER Discriminator
+Specifies an extra identifier for logging purposes, such as country or region.
+
 .EXAMPLE
 powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Invoke-DesiredStateManagementOperation.ps1
 
