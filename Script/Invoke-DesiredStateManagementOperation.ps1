@@ -733,19 +733,21 @@ filter Get-ItemPropertyUnexpanded
 	)
 
 	# Return object with unexpanded registry values. This requires some hoops.
-	$_.Property.Where({!$_.Equals('(default)')}).ForEach({
+	return $InputObject.Property.Where({!$_.Equals('(default)')}).ForEach({
 		begin {
 			# Open hashtable to hold data.
-			$obj = @{}
+			$obj = [ordered]@{}
 		}
 		process {
 			# Get data from incoming RegistryKey.
-			$obj.Add($_, $InputObject.GetValue($_, $null, 'DoNotExpandEnvironmentNames'))
+			$obj.Add($_, $InputObject.GetValue($_, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames))
 		}
 		end {
 			# Return pscustomobject to the pipeline if we have data.
 			if ($obj.GetEnumerator().Where({$_.Value}))
 			{
+				# Add all PS* properties back in.
+				($InputObject | Get-ItemProperty).PSObject.Properties.Where({$_.Name.StartsWith('PS')}).ForEach({$obj.Add($_.Name, $_.Value)})
 				return [pscustomobject]$obj
 			}
 		}
