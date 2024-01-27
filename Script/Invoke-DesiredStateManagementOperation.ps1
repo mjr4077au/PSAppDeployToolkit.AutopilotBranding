@@ -294,7 +294,7 @@ stderr stream. Invoke-DesiredStateManagementOperation.ps1 writes all error text 
 
 # Set our requirements here.
 #Requires -Version 5.1
-#Requires -Modules @{ ModuleName="TMLSTL.Logging"; ModuleVersion="5.3" }, @{ ModuleName="TMLSTL.Utilities"; ModuleVersion="5.3" }
+#Requires -Modules @{ ModuleName="TMLSTL.Logging"; ModuleVersion="5.5" }, @{ ModuleName="TMLSTL.Utilities"; ModuleVersion="5.5" }
 
 [CmdletBinding(DefaultParameterSetName = 'Confirm')]
 Param
@@ -722,36 +722,6 @@ function Invoke-DefaultUserRegistryAction
 		# Unmount hive.
 		[System.Void](reg.exe UNLOAD HKEY_LOCAL_MACHINE\TempUser 2>&1)
 	}
-}
-
-filter Get-ItemPropertyUnexpanded
-{
-	Param (
-		[Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-		[ValidateNotNullOrEmpty()]
-		[Microsoft.Win32.RegistryKey]$InputObject
-	)
-
-	# Return object with unexpanded registry values. This requires some hoops.
-	return $InputObject.Property.Where({!$_.Equals('(default)')}).ForEach({
-		begin {
-			# Open hashtable to hold data.
-			$obj = [ordered]@{}
-		}
-		process {
-			# Get data from incoming RegistryKey.
-			$obj.Add($_, $InputObject.GetValue($_, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames))
-		}
-		end {
-			# Return pscustomobject to the pipeline if we have data.
-			if ($obj.GetEnumerator().Where({$_.Value}))
-			{
-				# Add all PS* properties back in.
-				($InputObject | Get-ItemProperty).PSObject.Properties.Where({$_.Name.StartsWith('PS')}).ForEach({$obj.Add($_.Name, $_.Value)})
-				return [pscustomobject]$obj
-			}
-		}
-	})
 }
 
 filter Get-ContentFilePath
