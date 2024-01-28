@@ -729,19 +729,34 @@ filter Get-ContentFilePath
 	# Confirm we have a 'Content' element specified.
 	if ($xml.Config.ChildNodes.LocalName -notcontains 'Content')
 	{
-		throw "This element requires that 'Content' be configured to supply the required data."
+		throw [System.Management.Automation.ErrorRecord]::new(
+			[System.InvalidOperationException]::new("The 'Content' element has not been configured to supply the required data."),
+			'XmlConfigMissingContentConfig',
+			[System.Management.Automation.ErrorCategory]::InvalidOperation,
+			$xml
+		)
 	}
 
 	# Confirm Content has been initialised (should be given how the script operates).
 	if (!$data.Content.ContainsKey('DataMap'))
 	{
-		throw "The 'Content' element has not been initialised. This is unexpected behaviour."
+		throw [System.Management.Automation.ErrorRecord]::new(
+			[System.InvalidOperationException]::new("The 'Content' element has not been initialised. This is unexpected behaviour."),
+			'XmlContentConfigNotInitialised',
+			[System.Management.Automation.ErrorCategory]::InvalidOperation,
+			[pscustomobject]@{Config = $xml; Database = $data}
+		)
 	}
 
 	# Test that the piped file path is in the Content's DataMap keys.
 	if ($data.Content.DataMap.Keys -notcontains $_)
 	{
-		throw "The specified file '$_' was not available in the provided Content location."
+		throw [System.Management.Automation.ErrorRecord]::new(
+			[System.InvalidOperationException]::new("The specified file '$_' was not available in the provided Content location."),
+			'ContentFileNotFound',
+			[System.Management.Automation.ErrorCategory]::InvalidOperation,
+			$($data.Content.DataMap.Keys)
+		)
 	}
 
 	# Return the full path to the file within the Content element's destination.
@@ -782,7 +797,12 @@ function Get-WindowsNameVersion
 	}
 
 	# If we're here, we couldn't return a value.
-	throw 'Unsupported OS detected.'
+	throw [System.Management.Automation.ErrorRecord]::new(
+		[System.InvalidOperationException]::new("The current OS with version '$([System.Environment]::OSVersion.Version)' is unknown/not supported."),
+		'OperatingSystemNotSupported',
+		[System.Management.Automation.ErrorCategory]::InvalidOperation,
+		[System.Environment]::OSVersion
+	)
 }
 
 
@@ -858,14 +878,11 @@ function Initialize-ModuleData
 
 function Import-DesiredStateConfig
 {
-	# Create error handler.
-	$err = {throw $args[1].Exception.Message}
-
 	# Get XML file and validate against our schema.
 	$xml = [System.Xml.XmlDocument]::new()
-	$xml.Schemas.Add([System.Xml.Schema.XmlSchema]::Read([System.IO.StringReader]::new($schema), $err)) | Out-Null
+	$xml.Schemas.Add([System.Xml.Schema.XmlSchema]::Read([System.IO.StringReader]::new($schema), $null)) | Out-Null
 	$xml.Load($(try {[System.Xml.XmlReader]::Create($Config)} catch {[System.IO.StringReader]::new($Config)}))
-	$xml.Validate($err)
+	$xml.Validate($null)
 	return $xml
 }
 
