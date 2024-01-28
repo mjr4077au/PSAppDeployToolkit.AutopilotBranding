@@ -1107,7 +1107,7 @@ begin
 	function Remove-Content
 	{
 		# Store expanded destination and delete the contents folder.
-		Remove-ItemsAndEmptyDirectory -LiteralPath ($dest = [System.Environment]::ExpandEnvironmentVariables($xml.Config.Content.Destination))
+		Remove-ItemsAndEmptyDirectory -LiteralPath ($dest = [System.Environment]::ExpandEnvironmentVariables($xml.Config.Content.Destination)) -Verbose 4>&1 | Send-VerboseRecordsToLog
 
 		# Remove all references to the destination from the system's environment variables.
 		Set-SystemPathVariable -NewValue ([System.String]::Join(';', (Get-EnvironmentVariableValue -Variable Path -Target Machine).Split(';').Where({!$_.Equals($dest)})))
