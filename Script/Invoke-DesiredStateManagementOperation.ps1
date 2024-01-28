@@ -882,22 +882,18 @@ begin
 		$wsShell = New-Object -ComObject WScript.Shell
 		$data = Initialize-ModuleData
 
-		# Dynamically generate and invoike scriptblocks based on the XML config and what this script supports.
+		# Dynamically generate and invoke scriptblocks based on the XML config and what this script supports.
 		$div = if ($Action.Equals('Install')) {"; Write-LogDivider"}
-		$res = $xml.Config.ChildNodes.LocalName | ForEach-Object {
-			if ($cmdlet = Get-Command -Name "$($Action)-$_" -ErrorAction Ignore) {
-				[System.Management.Automation.ScriptBlock]::Create("$cmdlet$div").Invoke()
-			}
-		}
+		$res = $xml.Config.ChildNodes.LocalName.ForEach({[scriptblock]::Create("$Action-$_$div")}).InvokeReturnAsIs() -join "`n"
 
 		# Release the WScript.Shell COM object.
 		[System.Void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($wsShell)
 		$wsShell = $null; Remove-Variable -Name wsShell -Force -Confirm:$false
 
 		# Return any output to the caller.
-		if ($res -and ![System.String]::IsNullOrWhiteSpace(($res = [System.String]::Join("`n", $res))))
+		if (![System.String]::IsNullOrWhiteSpace($res))
 		{
-			if ($Action.Equals('Confirm')) {Write-LogDivider}
+			Write-LogDivider
 			return $res
 		}
 	}
