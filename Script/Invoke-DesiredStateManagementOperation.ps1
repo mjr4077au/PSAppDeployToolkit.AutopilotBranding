@@ -42,7 +42,7 @@ An example setup via an XML configuration file would be:
 
 <Config Version="1.0">
 	<Content>
-		<!--Note: If a Source is not specified, the script will assume you've provided data in the destination yourself-->
+		<!-- Note: If a Source is not specified, the script will require you to specify a content path and data map. -->
 		<Source>https://www.mysite.com.au/intune/desiredstate/content.zip</Source>
 		<Destination>%ProgramData%\DesiredStateManagement\Content</Destination>
 		<EnvironmentVariable>DesiredStateContents</EnvironmentVariable>
@@ -121,6 +121,9 @@ Instructs the script to remove installed defaults as per the supplied configurat
 .PARAMETER Mode
 Instructs the script to operate in one of the modes supported by the switch parameters. Sometimes its easier to pass a string for this.
 
+.PARAMETER Discriminator
+Specifies an extra identifier for logging purposes, such as country or region.
+
 .PARAMETER Config
 Specifies the file path/URI, or raw XML to use as the configuration source for the script.
 
@@ -129,9 +132,6 @@ Specifies the path to Content when not hosting it in a HTTPS location.
 
 .PARAMETER DataMap
 Specifies the file/hash map of Content when not hosting it in a HTTPS location.
-
-.PARAMETER Discriminator
-Specifies an extra identifier for logging purposes, such as country or region.
 
 .EXAMPLE
 powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Invoke-DesiredStateManagementOperation.ps1
@@ -292,331 +292,359 @@ stderr stream. Invoke-DesiredStateManagementOperation.ps1 writes all error text 
 
 #>
 
+# Set our requirements here.
+#Requires -Version 5.1
+#Requires -Modules @{ ModuleName="TMLSTL.Logging"; ModuleVersion="5.3" }, @{ ModuleName="TMLSTL.Utilities"; ModuleVersion="5.3" }
+
 [CmdletBinding(DefaultParameterSetName = 'Confirm')]
-Param (
-	[Parameter(Mandatory = $true, ParameterSetName = 'Install')]
+Param
+(
+	[Parameter(Mandatory = $true, ParameterSetName = 'Install', HelpMessage = "Instructs the script to install the Desired State Management config.")]
 	[System.Management.Automation.SwitchParameter]$Install,
 
-	[Parameter(Mandatory = $true, ParameterSetName = 'Remove')]
+	[Parameter(Mandatory = $true, ParameterSetName = 'Remove', HelpMessage = "Instructs the script to remove the Desired State Management config.")]
 	[System.Management.Automation.SwitchParameter]$Remove,
 
-	[Parameter(Mandatory = $true, ParameterSetName = 'ModeSelect')]
+	[Parameter(Mandatory = $true, ParameterSetName = 'ModeSelect', HelpMessage = "Specifies the mode in which to run. Exists mostly for the wrapper.")]
 	[ValidateSet('Confirm', 'Install', 'Remove')]
 	[System.String]$Mode,
-
-	[Parameter(Mandatory = $true, ParameterSetName = 'Install', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
-	[Parameter(Mandatory = $true, ParameterSetName = 'Remove', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
-	[Parameter(Mandatory = $true, ParameterSetName = 'Confirm', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
-	[Parameter(Mandatory = $true, ParameterSetName = 'ModeSelect', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
-	[ValidateNotNullOrEmpty()]
-	[System.String]$Config,
-
-	[Parameter(Mandatory = $false, ParameterSetName = 'Install', HelpMessage = "Provide the path to Content source if not hosted on a web server.")]
-	[Parameter(Mandatory = $false, ParameterSetName = 'Remove', HelpMessage = "Provide the path to Content source if not hosted on a web server.")]
-	[Parameter(Mandatory = $false, ParameterSetName = 'Confirm', HelpMessage = "Provide the path to Content source if not hosted on a web server.")]
-	[Parameter(Mandatory = $false, ParameterSetName = 'ModeSelect', HelpMessage = "Provide the path to Content source if not hosted on a web server.")]
-	[ValidateNotNullOrEmpty()]
-	[System.String]$ContentPath,
-
-	[Parameter(Mandatory = $false, ParameterSetName = 'Install', HelpMessage = "Provide the file/hash map to Content source if not hosted on a web server.")]
-	[Parameter(Mandatory = $false, ParameterSetName = 'Remove', HelpMessage = "Provide the file/hash map to Content source if not hosted on a web server.")]
-	[Parameter(Mandatory = $false, ParameterSetName = 'Confirm', HelpMessage = "Provide the file/hash map to Content source if not hosted on a web server.")]
-	[Parameter(Mandatory = $false, ParameterSetName = 'ModeSelect', HelpMessage = "Provide the file/hash map to Content source if not hosted on a web server.")]
-	[ValidateNotNullOrEmpty()]
-	[System.Collections.IDictionary]$DataMap,
 
 	[Parameter(Mandatory = $false, ParameterSetName = 'Install', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
 	[Parameter(Mandatory = $false, ParameterSetName = 'Remove', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
 	[Parameter(Mandatory = $false, ParameterSetName = 'Confirm', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
 	[Parameter(Mandatory = $false, ParameterSetName = 'ModeSelect', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
 	[ValidateNotNullOrEmpty()]
-	[System.String]$Discriminator
+	[System.String]$Discriminator,
+
+	[Parameter(Mandatory = $true, ParameterSetName = 'Install', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
+	[Parameter(Mandatory = $true, ParameterSetName = 'Remove', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
+	[Parameter(Mandatory = $true, ParameterSetName = 'Confirm', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
+	[Parameter(Mandatory = $true, ParameterSetName = 'ModeSelect', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
+	[ValidateScript({
+		# Open a new XML document and add out schema.
+		$Script:xml = [System.Xml.XmlDocument]::new()
+		[System.Void]$xml.Schemas.Add([System.Xml.Schema.XmlSchema]::Read([System.IO.StringReader]::new('<?xml version="1.0" encoding="utf-8"?>
+			<xs:schema attributeFormDefault="qualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+				<!--Element/attribute restriction definitions-->
+				<xs:simpleType name="baseStandardString">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^[^\s].+[^\s]$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseAnyPath">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^((%[^%]+%|\\\\.+)(\\[^\\]+)+(?&lt;=\w)|(\w+:\/\/)?.+(?&lt;=(\w|\/)))$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseAnyFilePath">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^(%[^%]+%|\\\\.+)(\\[^\\]+)+(?&lt;=\w)$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseShortcutRelativePath">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^(%[^%]+%|\\\\.+|\.{2})(\\[^\\]+)+(?&lt;=\w)$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseShortcutIconLocation">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^(%[^%]+%|\\\\.+)(\\[^\\]+)+(?&lt;=\w),\d+$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseShortcutWindowStyle">
+					<xs:restriction base="xs:integer">
+						<xs:pattern value="^(1|3|7)$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseContentSource">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^https:\/\/.+\.zip$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseContentDestination">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^%[^%]+%\\.+[^.\s]$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseXmlFile">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^(?!\w:|:|\\|\s)[^%]+\.xml$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseBmpFile">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^(?!\w:|:|\\|\s)[^%]+\.bmp$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseJsonFile">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^(?!\w:|:|\\|\s)[^%]+\.json$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseThemeFile">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^(?!\w:|:|\\|\s)[^%]+\.theme$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseShortcutFile">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^(?!\w:|:|\\|\s)[^%]+\.(lnk|url)$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseShortcutLocation">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^Common(DesktopDirectory|StartMenu|Startup)$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseRegistryDataKey">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^HKEY_(LOCAL_MACHINE|CURRENT_(CONFIG|USER)|CLASSES_ROOT|USERS).*[^.\s]$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseRegistryDataType">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^REG_(SZ|MULTI_SZ|EXPAND_SZ|DWORD|BINARY)$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseInstallRemove">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^(Install|Remove)$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<xs:simpleType name="baseEnableDisable">
+					<xs:restriction base="xs:string">
+						<xs:pattern value="^(Enable|Disable)$"/>
+					</xs:restriction>
+				</xs:simpleType>
+
+				<!--The main XML schema for the source file-->
+				<xs:element name="Config">
+					<xs:complexType>
+						<xs:all>
+							<xs:element name="DefaultStartLayout" type="baseXmlFile" minOccurs="0"/>
+							<xs:element name="DefaultAppAssociations" type="baseXmlFile" minOccurs="0"/>
+							<xs:element name="LanguageDefaults" type="baseXmlFile" minOccurs="0"/>
+							<xs:element name="DefaultTheme" type="baseThemeFile" minOccurs="0"/>
+
+							<xs:element name="Content" minOccurs="0">
+								<xs:complexType>
+									<xs:all>
+										<!--If no source is provided, it is assumed the data has been externally provided-->
+										<xs:element name="Source" type="baseContentSource" minOccurs="0"/>
+										<xs:element name="Destination" type="baseContentDestination"/>
+										<xs:element name="EnvironmentVariable" type="baseStandardString"/>
+									</xs:all>
+								</xs:complexType>
+							</xs:element>
+
+							<xs:element name="RegistrationInfo" minOccurs="0">
+								<xs:complexType>
+									<xs:all>
+										<xs:element name="RegisteredOwner" type="baseStandardString"/>
+										<xs:element name="RegisteredOrganization" type="baseStandardString"/>
+									</xs:all>
+								</xs:complexType>
+							</xs:element>
+
+							<xs:element name="OemInformation" minOccurs="0">
+								<xs:complexType>
+									<xs:all>
+										<xs:element name="Manufacturer" type="baseStandardString"/>
+										<xs:element name="Logo" type="baseBmpFile"/>
+										<xs:element name="SupportPhone" type="baseStandardString"/>
+										<xs:element name="SupportHours" type="baseStandardString"/>
+										<xs:element name="SupportURL" type="baseStandardString"/>
+									</xs:all>
+								</xs:complexType>
+							</xs:element>
+
+							<xs:element name="SystemDriveLockdown" minOccurs="0">
+								<xs:complexType>
+									<xs:attribute name="Enabled" type="xs:nonNegativeInteger" use="required" />
+								</xs:complexType>
+							</xs:element>
+
+							<xs:element name="DefaultLayoutModification" minOccurs="0">
+								<xs:complexType>
+									<xs:all>
+										<xs:element name="Taskbar" type="baseXmlFile"/>
+										<xs:element name="StartMenu" type="baseJsonFile" minOccurs="0"/>
+									</xs:all>
+								</xs:complexType>
+							</xs:element>
+
+							<xs:element name="ActiveSetup" minOccurs="0">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="Component" maxOccurs="unbounded">
+											<xs:complexType>
+												<xs:all>
+													<xs:element name="Name" type="baseStandardString"/>
+													<xs:element name="StubPath" type="baseStandardString"/>
+												</xs:all>
+												<xs:attribute name="Version" type="xs:positiveInteger" use="required" />
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+									<xs:attribute name="Identifier" type="baseStandardString" use="required" />
+								</xs:complexType>
+							</xs:element>
+
+							<xs:element name="SystemShortcuts" minOccurs="0">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="Shortcut" maxOccurs="unbounded">
+											<xs:complexType>
+												<xs:all>
+													<xs:element name="TargetPath" type="baseAnyPath"/>
+													<xs:element name="Arguments" type="baseStandardString" minOccurs="0"/>
+													<xs:element name="Description" type="baseStandardString" minOccurs="0"/>
+													<xs:element name="Hotkey" type="baseStandardString" minOccurs="0"/>
+													<xs:element name="IconLocation" type="baseShortcutIconLocation" minOccurs="0"/>
+													<xs:element name="RelativePath" type="baseShortcutRelativePath" minOccurs="0"/>
+													<xs:element name="WindowStyle" type="baseShortcutWindowStyle" minOccurs="0"/>
+													<xs:element name="WorkingDirectory" type="baseAnyFilePath" minOccurs="0"/>
+												</xs:all>
+												<xs:attribute name="Location" type="baseShortcutLocation"/>
+												<xs:attribute name="Name" type="baseShortcutFile"/>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+
+							<xs:element name="RegistryData" minOccurs="0">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="Item" maxOccurs="unbounded">
+											<xs:complexType>
+												<xs:all>
+													<xs:element name="Key" type="baseRegistryDataKey"/>
+													<xs:element name="Name" type="baseStandardString"/>
+													<xs:element name="Value" type="baseStandardString"/>
+													<xs:element name="Type" type="baseRegistryDataType"/>
+												</xs:all>
+												<xs:attribute name="Description" type="baseStandardString" use="required" />
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+
+							<xs:element name="RemoveApps" minOccurs="0">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="App" type="baseStandardString" maxOccurs="unbounded"/>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+
+							<xs:element name="WindowsCapabilities" minOccurs="0">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="Capability" maxOccurs="unbounded">
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="baseStandardString">
+														<xs:attribute name="Action" use="required" type="baseInstallRemove"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+
+							<xs:element name="WindowsOptionalFeatures" minOccurs="0">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="Feature" maxOccurs="unbounded">
+											<xs:complexType>
+												<xs:simpleContent>
+													<xs:extension base="baseStandardString">
+														<xs:attribute name="Action" use="required" type="baseEnableDisable"/>
+													</xs:extension>
+												</xs:simpleContent>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:all>
+						<xs:attribute name="Version" type="xs:decimal" use="required" />
+					</xs:complexType>
+				</xs:element>
+			</xs:schema>'
+		), $null))
+
+		# Load our file in, attempting as a URI first and then validate it before returning success.
+		$xml.Load($(try {[System.Xml.XmlReader]::Create($Config)} catch {[System.IO.StringReader]::new($Config)}))
+		$xml.Validate($null)
+		return $true
+	})]
+	[System.String]$Config
 )
 
-# Set our requirements here.
-#Requires -Version 5.1
-#Requires -Modules @{ ModuleName="TMLSTL.Logging"; ModuleVersion="5.3" }, @{ ModuleName="TMLSTL.Utilities"; ModuleVersion="5.3" }
+DynamicParam
+{
+	# Set required variables to ensure script functionality.
+	$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
+	$ProgressPreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
+	Set-PSDebug -Strict
+	Set-StrictMode -Version Latest
 
-# Set required variables to ensure script functionality.
-$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
-$ProgressPreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
-Set-PSDebug -Strict
-Set-StrictMode -Version Latest
+	# Add additional parameters if the config specifies content without a source.
+	if ($xml.Config.ChildNodes.LocalName.Contains('Content') -and !$xml.Config.Content.ChildNodes.LocalName.Contains('Source'))
+	{
+		# Define parameter dictionary for returning at the end.
+		$paramDictionary = [System.Management.Automation.RuntimeDefinedParameterDictionary]::new()
 
-# Store XML schema.
-$schema = @'
-<?xml version="1.0" encoding="utf-8"?>
-<xs:schema attributeFormDefault="qualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-	<!--Element/attribute restriction definitions-->
-	<xs:simpleType name="baseStandardString">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^[^\s].+[^\s]$"/>
-		</xs:restriction>
-	</xs:simpleType>
+		# Add $ContentPath, not requiring it but allowing it for remove/confirm to make the wrapper simpler.
+		$paramDictionary.Add('ContentPath', [System.Management.Automation.RuntimeDefinedParameter]::new(
+			'ContentPath', [System.String], [System.Collections.Generic.List[System.Attribute]]@(
+				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Install'; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
+				[System.Management.Automation.ParameterAttribute]@{Mandatory = $false; ParameterSetName = 'Remove'; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
+				[System.Management.Automation.ParameterAttribute]@{Mandatory = $false; ParameterSetName = 'Confirm'; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
+				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'ModeSelect'; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
+				[System.Management.Automation.ValidateScriptAttribute]::new({[System.IO.Directory]::Exists($_) -and !!(Get-ChildItem -LiteralPath $_)})
+			)
+		))
 
-	<xs:simpleType name="baseAnyPath">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^((%[^%]+%|\\\\.+)(\\[^\\]+)+(?&lt;=\w)|(\w+:\/\/)?.+(?&lt;=(\w|\/)))$"/>
-		</xs:restriction>
-	</xs:simpleType>
+		# Add $DataMap, not requiring it but allowing it for remove to make the wrapper simpler.
+		$paramDictionary.Add('DataMap', [System.Management.Automation.RuntimeDefinedParameter]::new(
+			'DataMap', [System.Collections.IDictionary], [System.Collections.Generic.List[System.Attribute]]@(
+				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Install'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
+				[System.Management.Automation.ParameterAttribute]@{Mandatory = $false; ParameterSetName = 'Remove'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
+				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Confirm'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
+				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'ModeSelect'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
+				[System.Management.Automation.ValidateScriptAttribute]::new({!!$_.Count})
+			)
+		))
 
-	<xs:simpleType name="baseAnyFilePath">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^(%[^%]+%|\\\\.+)(\\[^\\]+)+(?&lt;=\w)$"/>
-		</xs:restriction>
-	</xs:simpleType>
+		# Return the populated dictionary.
+		return $paramDictionary
+	}
+}
 
-	<xs:simpleType name="baseShortcutRelativePath">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^(%[^%]+%|\\\\.+|\.{2})(\\[^\\]+)+(?&lt;=\w)$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseShortcutIconLocation">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^(%[^%]+%|\\\\.+)(\\[^\\]+)+(?&lt;=\w),\d+$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseShortcutWindowStyle">
-		<xs:restriction base="xs:integer">
-			<xs:pattern value="^(1|3|7)$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseContentSource">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^https:\/\/.+\.zip$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseContentDestination">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^%[^%]+%\\.+[^.\s]$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseXmlFile">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^(?!\w:|:|\\|\s)[^%]+\.xml$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseBmpFile">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^(?!\w:|:|\\|\s)[^%]+\.bmp$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseJsonFile">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^(?!\w:|:|\\|\s)[^%]+\.json$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseThemeFile">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^(?!\w:|:|\\|\s)[^%]+\.theme$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseShortcutFile">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^(?!\w:|:|\\|\s)[^%]+\.(lnk|url)$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseShortcutLocation">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^Common(DesktopDirectory|StartMenu|Startup)$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseRegistryDataKey">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^HKEY_(LOCAL_MACHINE|CURRENT_(CONFIG|USER)|CLASSES_ROOT|USERS).*[^.\s]$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseRegistryDataType">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^REG_(SZ|MULTI_SZ|EXPAND_SZ|DWORD|BINARY)$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseInstallRemove">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^(Install|Remove)$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<xs:simpleType name="baseEnableDisable">
-		<xs:restriction base="xs:string">
-			<xs:pattern value="^(Enable|Disable)$"/>
-		</xs:restriction>
-	</xs:simpleType>
-
-	<!--The main XML schema for the source file-->
-	<xs:element name="Config">
-		<xs:complexType>
-			<xs:all>
-				<xs:element name="DefaultStartLayout" type="baseXmlFile" minOccurs="0"/>
-				<xs:element name="DefaultAppAssociations" type="baseXmlFile" minOccurs="0"/>
-				<xs:element name="LanguageDefaults" type="baseXmlFile" minOccurs="0"/>
-				<xs:element name="DefaultTheme" type="baseThemeFile" minOccurs="0"/>
-
-				<xs:element name="Content" minOccurs="0">
-					<xs:complexType>
-						<xs:all>
-							<!--If no source is provided, it is assumed the data has been externally provided-->
-							<xs:element name="Source" type="baseContentSource" minOccurs="0"/>
-							<xs:element name="Destination" type="baseContentDestination"/>
-							<xs:element name="EnvironmentVariable" type="baseStandardString"/>
-						</xs:all>
-					</xs:complexType>
-				</xs:element>
-
-				<xs:element name="RegistrationInfo" minOccurs="0">
-					<xs:complexType>
-						<xs:all>
-							<xs:element name="RegisteredOwner" type="baseStandardString"/>
-							<xs:element name="RegisteredOrganization" type="baseStandardString"/>
-						</xs:all>
-					</xs:complexType>
-				</xs:element>
-
-				<xs:element name="OemInformation" minOccurs="0">
-					<xs:complexType>
-						<xs:all>
-							<xs:element name="Manufacturer" type="baseStandardString"/>
-							<xs:element name="Logo" type="baseBmpFile"/>
-							<xs:element name="SupportPhone" type="baseStandardString"/>
-							<xs:element name="SupportHours" type="baseStandardString"/>
-							<xs:element name="SupportURL" type="baseStandardString"/>
-						</xs:all>
-					</xs:complexType>
-				</xs:element>
-
-				<xs:element name="SystemDriveLockdown" minOccurs="0">
-					<xs:complexType>
-						<xs:attribute name="Enabled" type="xs:nonNegativeInteger" use="required" />
-					</xs:complexType>
-				</xs:element>
-
-				<xs:element name="DefaultLayoutModification" minOccurs="0">
-					<xs:complexType>
-						<xs:all>
-							<xs:element name="Taskbar" type="baseXmlFile"/>
-							<xs:element name="StartMenu" type="baseJsonFile" minOccurs="0"/>
-						</xs:all>
-					</xs:complexType>
-				</xs:element>
-
-				<xs:element name="ActiveSetup" minOccurs="0">
-					<xs:complexType>
-						<xs:sequence>
-							<xs:element name="Component" maxOccurs="unbounded">
-								<xs:complexType>
-									<xs:all>
-										<xs:element name="Name" type="baseStandardString"/>
-										<xs:element name="StubPath" type="baseStandardString"/>
-									</xs:all>
-									<xs:attribute name="Version" type="xs:positiveInteger" use="required" />
-								</xs:complexType>
-							</xs:element>
-						</xs:sequence>
-						<xs:attribute name="Identifier" type="baseStandardString" use="required" />
-					</xs:complexType>
-				</xs:element>
-
-				<xs:element name="SystemShortcuts" minOccurs="0">
-					<xs:complexType>
-						<xs:sequence>
-							<xs:element name="Shortcut" maxOccurs="unbounded">
-								<xs:complexType>
-									<xs:all>
-										<xs:element name="TargetPath" type="baseAnyPath"/>
-										<xs:element name="Arguments" type="baseStandardString" minOccurs="0"/>
-										<xs:element name="Description" type="baseStandardString" minOccurs="0"/>
-										<xs:element name="Hotkey" type="baseStandardString" minOccurs="0"/>
-										<xs:element name="IconLocation" type="baseShortcutIconLocation" minOccurs="0"/>
-										<xs:element name="RelativePath" type="baseShortcutRelativePath" minOccurs="0"/>
-										<xs:element name="WindowStyle" type="baseShortcutWindowStyle" minOccurs="0"/>
-										<xs:element name="WorkingDirectory" type="baseAnyFilePath" minOccurs="0"/>
-									</xs:all>
-									<xs:attribute name="Location" type="baseShortcutLocation"/>
-									<xs:attribute name="Name" type="baseShortcutFile"/>
-								</xs:complexType>
-							</xs:element>
-						</xs:sequence>
-					</xs:complexType>
-				</xs:element>
-
-				<xs:element name="RegistryData" minOccurs="0">
-					<xs:complexType>
-						<xs:sequence>
-							<xs:element name="Item" maxOccurs="unbounded">
-								<xs:complexType>
-									<xs:all>
-										<xs:element name="Key" type="baseRegistryDataKey"/>
-										<xs:element name="Name" type="baseStandardString"/>
-										<xs:element name="Value" type="baseStandardString"/>
-										<xs:element name="Type" type="baseRegistryDataType"/>
-									</xs:all>
-									<xs:attribute name="Description" type="baseStandardString" use="required" />
-								</xs:complexType>
-							</xs:element>
-						</xs:sequence>
-					</xs:complexType>
-				</xs:element>
-
-				<xs:element name="RemoveApps" minOccurs="0">
-					<xs:complexType>
-						<xs:sequence>
-							<xs:element name="App" type="baseStandardString" maxOccurs="unbounded"/>
-						</xs:sequence>
-					</xs:complexType>
-				</xs:element>
-
-				<xs:element name="WindowsCapabilities" minOccurs="0">
-					<xs:complexType>
-						<xs:sequence>
-							<xs:element name="Capability" maxOccurs="unbounded">
-								<xs:complexType>
-									<xs:simpleContent>
-										<xs:extension base="baseStandardString">
-											<xs:attribute name="Action" use="required" type="baseInstallRemove"/>
-										</xs:extension>
-									</xs:simpleContent>
-								</xs:complexType>
-							</xs:element>
-						</xs:sequence>
-					</xs:complexType>
-				</xs:element>
-
-				<xs:element name="WindowsOptionalFeatures" minOccurs="0">
-					<xs:complexType>
-						<xs:sequence>
-							<xs:element name="Feature" maxOccurs="unbounded">
-								<xs:complexType>
-									<xs:simpleContent>
-										<xs:extension base="baseStandardString">
-											<xs:attribute name="Action" use="required" type="baseEnableDisable"/>
-										</xs:extension>
-									</xs:simpleContent>
-								</xs:complexType>
-							</xs:element>
-						</xs:sequence>
-					</xs:complexType>
-				</xs:element>
-			</xs:all>
-			<xs:attribute name="Version" type="xs:decimal" use="required" />
-		</xs:complexType>
-	</xs:element>
-</xs:schema>
-'@
-
-
+begin
+{
 #---------------------------------------------------------------------------
 #
 # Miscellaneous functions.
@@ -876,24 +904,11 @@ function Initialize-ModuleData
 	}
 }
 
-function Import-DesiredStateConfig
-{
-	# Get XML file and validate against our schema.
-	$xml = [System.Xml.XmlDocument]::new()
-	$xml.Schemas.Add([System.Xml.Schema.XmlSchema]::Read([System.IO.StringReader]::new($schema), $null)) | Out-Null
-	$xml.Load($(try {[System.Xml.XmlReader]::Create($Config)} catch {[System.IO.StringReader]::new($Config)}))
-	$xml.Validate($null)
-	return $xml
-}
-
 function Invoke-DesiredStateOperations ([Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][System.String]$Action)
 {
 	# Initialise variables for desired state ops.
 	$wsShell = New-Object -ComObject WScript.Shell
-
-	# Get all required data.
 	$data = Initialize-ModuleData
-	$xml = Import-DesiredStateConfig
 
 	# Dynamically generate and invoike scriptblocks based on the XML config and what this script supports.
 	$div = if ($Action.Equals('Install')) {"; Write-LogDivider"}
@@ -1048,36 +1063,14 @@ function Invoke-ContentPreOps
 			Expand-Archive -LiteralPath $data.Content.DownloadFile -DestinationPath $data.Content.TemporaryDir -Force
 			$data.Content.DataMap = Out-FileHashDataMap -LiteralPath $data.Content.TemporaryDir
 		}
-		elseif ($ContentPath -or $DataMap)
-		{
-			# Only validate the Content path for installations.
-			if ($Action.Equals('Install'))
-			{
-				# Test that the provided path exists.
-				if (![System.IO.Directory]::Exists($ContentPath))
-				{
-					throw "The specified Content path of '$ContentPath' does not exist."
-				}
-
-				# Test that the provided path has files.
-				if (!(Get-ChildItem -LiteralPath $ContentPath))
-				{
-					throw "The specified Content path of '$ContentPath' does not contain any files or folders."
-				}
-				$data.Content.TemporaryDir = $ContentPath
-			}
-
-			# Test whether the provided DataMap is valid before storing its contents.
-			if (!$DataMap -or !$DataMap.Count)
-			{
-				throw "The specified Content data map is null or empty."
-			}
-			$data.Content.DataMap = $DataMap
-		}
 		else
 		{
-			# If we're here, something undefined has occurred.
-			throw "The Content configuration is configured in an undefined manner. Please review the config and try again."
+			# A Content path is only available for installations.
+			if ($Action.Equals('Install'))
+			{
+				$data.Content.TemporaryDir = $Script:PSBoundParameters['ContentPath']
+			}
+			$data.Content.DataMap = $Script:PSBoundParameters['DataMap']
 		}
 
 		# Set the destination path based off the incoming content, expanding any environment variables as required.
@@ -1102,12 +1095,9 @@ function Test-ContentValidity
 		$exitCode += 1
 	}
 
-	# If we've provided source content, test its validity.
-	if ($xml.Config.Content.ChildNodes.LocalName.Contains('Source') -or $ContentPath)
-	{
-		$gifParams = @{LiteralPath = $data.Content.Destination; DataMap = $data.Content.DataMap}
-		$exitCode += 2 * !!$(try {Get-InvalidFiles @gifParams} catch {1})
-	}
+	# Test the validity of the destination data.
+	$gifParams = @{LiteralPath = $data.Content.Destination; DataMap = $data.Content.DataMap}
+	$exitCode += 2 * !!$(try {Get-InvalidFiles @gifParams} catch {1})
 
 	# Exit with results.
 	return $exitCode
@@ -2191,8 +2181,11 @@ function Remove-WindowsOptionalFeatures
 {
 	Write-LogEntry -Message "Removal/reversal of WindowsOptionalFeatures configuration is not supported." -Warning -Prefix
 }
+} # Closing brace for begin{}
 
 
+end
+{
 #---------------------------------------------------------------------------
 #
 # Main code execution block.
@@ -2227,3 +2220,4 @@ finally
 	# Always ensure this is called to finalise the script.
 	Close-LogFile
 }
+} # Closing brace for end{}

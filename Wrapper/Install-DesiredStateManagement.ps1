@@ -77,7 +77,7 @@ $dataMap = [ordered]@{
 $config = @"
 <Config Version="1.0">
 	<Content>
-		<!--Note: If a Source is not specified, the script will assume you've provided data in the destination yourself-->
+		<!-- Note: If a Source is not specified, the script will require you to specify a content path and data map. -->
 		<Destination>%ProgramData%\Schenck\DesiredStateManagement\Content</Destination>
 		<EnvironmentVariable>DesiredStateContents</EnvironmentVariable>
 	</Content>
