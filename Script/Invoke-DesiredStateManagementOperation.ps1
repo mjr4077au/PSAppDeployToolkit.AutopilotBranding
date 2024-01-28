@@ -989,7 +989,8 @@ begin
 		# Output test results.
 		if ($components.Deprecated)
 		{
-			"The following ActiveSetup components require removing:$($components.Deprecated.PSChildName | ConvertTo-BulletedList)"
+			$deprecated = $components.Deprecated.PSChildName.Replace("$($xml.Config.ActiveSetup.Identifier) - ", $null)
+			"The following ActiveSetup components require removing:$($deprecated | ConvertTo-BulletedList)"
 		}
 		if ($components.Mismatched)
 		{
