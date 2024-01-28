@@ -1047,7 +1047,7 @@ begin
 		}
 		catch
 		{
-			Write-LogEntry -Message "Unable to confirm Content state. $($_.Exception.Message)" -StdErr -Prefix
+			$_ | Invoke-ErrorHandler -ErrorPrefix "Error confirming Content state." -NoStackTrace
 			return 1
 		}
 	}
@@ -1147,7 +1147,7 @@ begin
 		}
 		catch
 		{
-			Write-LogEntry -Message "Unable to confirm DefaultAppAssociations state. $($_.Exception.Message)" -StdErr -Prefix
+			$_ | Invoke-ErrorHandler -ErrorPrefix "Error confirming DefaultAppAssociations state." -NoStackTrace
 			return 1
 		}
 	}
@@ -1227,7 +1227,7 @@ begin
 		}
 		catch
 		{
-			Write-LogEntry -Message "Unable to confirm DefaultStartLayout state. $($_.Exception.Message)" -StdErr -Prefix
+			$_ | Invoke-ErrorHandler -ErrorPrefix "Error confirming DefaultStartLayout state." -NoStackTrace
 			return 1
 		}
 	}
@@ -1330,7 +1330,7 @@ begin
 		}
 		catch
 		{
-			Write-LogEntry -Message "Unable to confirm DefaultLayoutModification state. $($_.Exception.Message)" -StdErr -Prefix
+			$_ | Invoke-ErrorHandler -ErrorPrefix "Error confirming DefaultLayoutModification state." -NoStackTrace
 			return 1
 		}
 	}
@@ -1407,7 +1407,7 @@ begin
 		}
 		catch
 		{
-			Write-LogEntry -Message "Unable to confirm DefaultTheme state. $($_.Exception.Message)" -StdErr -Prefix
+			$_ | Invoke-ErrorHandler -ErrorPrefix "Error confirming DefaultTheme state." -NoStackTrace
 			return 1
 		}
 	}
@@ -1481,7 +1481,7 @@ begin
 		}
 		catch
 		{
-			Write-LogEntry -Message "Unable to confirm LanguageDefaults state. $($_.Exception.Message)" -StdErr -Prefix
+			$_ | Invoke-ErrorHandler -ErrorPrefix "Error confirming LanguageDefaults state." -NoStackTrace
 			return 1
 		}
 	}
@@ -1555,7 +1555,7 @@ begin
 		}
 		catch
 		{
-			Write-LogEntry -Message "Unable to confirm OemInformation state. $($_.Exception.Message)" -StdErr -Prefix
+			$_ | Invoke-ErrorHandler -ErrorPrefix "Error confirming OemInformation state." -NoStackTrace
 			return 1
 		}
 	}
