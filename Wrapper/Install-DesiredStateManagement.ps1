@@ -235,6 +235,10 @@ $config = @"
 </Config>
 "@
 
+# Set up parameters.
+if ($Install) {$PSBoundParameters.Add('ContentPath', "$PWD\Content")}
+if (!$Remove) {$PSBoundParameters.Add('DataMap', $dataMap)}
+
 # Call Invoke-DesiredStateManagementOperation.ps1 and do underlying operation.
-Invoke-DesiredStateManagementOperation.ps1 -Mode $PSCmdlet.ParameterSetName -Config $config -ContentPath "$PWD\Content" -DataMap $dataMap
+Invoke-DesiredStateManagementOperation.ps1 @PSBoundParameters -Config $config
 exit $LASTEXITCODE

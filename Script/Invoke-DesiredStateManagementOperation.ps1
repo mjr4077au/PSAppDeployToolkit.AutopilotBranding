@@ -118,9 +118,6 @@ Instructs the script to install missing defaults as per the supplied configurati
 .PARAMETER Remove
 Instructs the script to remove installed defaults as per the supplied configuration.
 
-.PARAMETER Mode
-Instructs the script to operate in one of the modes supported by the switch parameters. Sometimes its easier to pass a string for this.
-
 .PARAMETER Discriminator
 Specifies an extra identifier for logging purposes, such as country or region.
 
@@ -305,21 +302,15 @@ Param
 	[Parameter(Mandatory = $true, ParameterSetName = 'Remove', HelpMessage = "Instructs the script to remove the Desired State Management config.")]
 	[System.Management.Automation.SwitchParameter]$Remove,
 
-	[Parameter(Mandatory = $true, ParameterSetName = 'ModeSelect', HelpMessage = "Specifies the mode in which to run. Exists mostly for the wrapper.")]
-	[ValidateSet('Confirm', 'Install', 'Remove')]
-	[System.String]$Mode,
-
 	[Parameter(Mandatory = $false, ParameterSetName = 'Install', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
 	[Parameter(Mandatory = $false, ParameterSetName = 'Remove', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
 	[Parameter(Mandatory = $false, ParameterSetName = 'Confirm', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
-	[Parameter(Mandatory = $false, ParameterSetName = 'ModeSelect', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
 	[ValidateNotNullOrEmpty()]
 	[System.String]$Discriminator,
 
 	[Parameter(Mandatory = $true, ParameterSetName = 'Install', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
 	[Parameter(Mandatory = $true, ParameterSetName = 'Remove', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
 	[Parameter(Mandatory = $true, ParameterSetName = 'Confirm', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
-	[Parameter(Mandatory = $true, ParameterSetName = 'ModeSelect', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
 	[ValidateScript({
 		# Open a new XML document and add out schema.
 		$Script:xml = [System.Xml.XmlDocument]::new()
@@ -610,30 +601,28 @@ DynamicParam
 	Set-PSDebug -Strict
 	Set-StrictMode -Version Latest
 
-	# Add additional parameters if the config specifies content without a source.
-	if ($xml.Config.ChildNodes.LocalName.Contains('Content') -and !$xml.Config.Content.ChildNodes.LocalName.Contains('Source'))
+	# Add additional parameters if we're not removing the toolkit and the config specifies content without a source.
+	if (!$Remove -and $xml.Config.ChildNodes.LocalName.Contains('Content') -and !$xml.Config.Content.ChildNodes.LocalName.Contains('Source'))
 	{
 		# Define parameter dictionary for returning at the end.
 		$paramDictionary = [System.Management.Automation.RuntimeDefinedParameterDictionary]::new()
 
-		# Add $ContentPath, not requiring it but allowing it for remove/confirm to make the wrapper simpler.
-		$paramDictionary.Add('ContentPath', [System.Management.Automation.RuntimeDefinedParameter]::new(
-			'ContentPath', [System.String], [System.Collections.Generic.List[System.Attribute]]@(
-				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Install'; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
-				[System.Management.Automation.ParameterAttribute]@{Mandatory = $false; ParameterSetName = 'Remove'; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
-				[System.Management.Automation.ParameterAttribute]@{Mandatory = $false; ParameterSetName = 'Confirm'; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
-				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'ModeSelect'; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
-				[System.Management.Automation.ValidateScriptAttribute]::new({[System.IO.Directory]::Exists($_) -and !!(Get-ChildItem -LiteralPath $_)})
-			)
-		))
+		# Add $ContentPath only for installations.
+		if ($Install)
+		{
+			$paramDictionary.Add('ContentPath', [System.Management.Automation.RuntimeDefinedParameter]::new(
+				'ContentPath', [System.String], [System.Collections.Generic.List[System.Attribute]]@(
+					[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Install'; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
+					[System.Management.Automation.ValidateScriptAttribute]::new({[System.IO.Directory]::Exists($_) -and !!(Get-ChildItem -LiteralPath $_)})
+				)
+			))
+		}
 
-		# Add $DataMap, not requiring it but allowing it for remove to make the wrapper simpler.
+		# Add $DataMap all non-remove operations.
 		$paramDictionary.Add('DataMap', [System.Management.Automation.RuntimeDefinedParameter]::new(
 			'DataMap', [System.Collections.IDictionary], [System.Collections.Generic.List[System.Attribute]]@(
 				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Install'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
-				[System.Management.Automation.ParameterAttribute]@{Mandatory = $false; ParameterSetName = 'Remove'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
 				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Confirm'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
-				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'ModeSelect'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
 				[System.Management.Automation.ValidateScriptAttribute]::new({!!$_.Count})
 			)
 		))
@@ -2166,13 +2155,8 @@ end
 	try
 	{
 		# Open log file and commence operations.
-		$olfParams = @{
-			Cmdlet = $PSCmdlet
-			Action = $(if ($Mode) {$Mode} else {$PSCmdlet.ParameterSetName})
-			Discriminator = $Discriminator
-		}
-		Open-LogFile @olfParams
-		if ($output = Invoke-DesiredStateOperations -Action $olfParams.Action) {throw $output}
+		Open-LogFile -Cmdlet $PSCmdlet -Action $PSCmdlet.ParameterSetName -Discriminator $Discriminator
+		if ($output = Invoke-DesiredStateOperations -Action $PSCmdlet.ParameterSetName) {throw $output}
 	}
 	catch
 	{
