@@ -1,7 +1,7 @@
 ﻿
 <#PSScriptInfo
 
-.VERSION 2.8
+.VERSION 2.9
 
 .GUID dd1fb415-b54e-4773-938c-5c575c335bbd
 
@@ -9,24 +9,7 @@
 
 .COMPANYNAME The Missing Link Network Integration Pty Ltd
 
-.COPYRIGHT Copyright © 2023 Mitchell James Richters. All rights reserved.
-
-.TAGS
-
-.LICENSEURI
-
-.PROJECTURI
-
-.ICONURI
-
-.EXTERNALMODULEDEPENDENCIES
-
-.REQUIREDSCRIPTS
-
-.EXTERNALSCRIPTDEPENDENCIES
-
-.RELEASENOTES
-- Migrate script to common backend utilities.
+.COPYRIGHT Copyright © 2024 Mitchell James Richters. All rights reserved.
 
 #>
 
@@ -154,6 +137,25 @@ stderr stream. Invoke-DesiredStateManagementOperation.ps1 writes all error text 
 
 .NOTES
 **Changelog**
+
+2.9
+- Optimise output check in script's main catch block.
+- Replace all `-f` operators with `[System.String]::Format()` static method.
+- Add some missing parameter help comments.
+- Throw proper errors for our unexpected/unsupported issues.
+- Overhaul parameter setup for $ContentPath and $DataMap.
+- Use the `.Add()` method on all hashtables so we can error out if we try to overwrite data.
+- Make `Get-ItemPropertyUnexpanded` API 1:1 with `Get-ItemProperty`.
+- Remove `Get-ItemPropertyUnexpanded` as it's now in TMLSTL.
+- Indent script to properly fit within the begin/end blocks.
+- Avoid `.Invoke()` on scriptblocks as it returns a collection rather than enumerated output.
+- Consistency fix for reporting on deprecated ActiveSetup components.
+- Ensure all non-terminating errors go via `Invoke-ErrorHandler`.
+- Get rid of `$Mode` parameter.
+- Ensure verbose output from `Remove-ItemsAndEmptyDirectory` is logged appropriately.
+
+2.8
+- Migrate script to common backend utilities.
 
 2.7
 - Made `DefaultStartLayout` supported on Window 10 systems only.

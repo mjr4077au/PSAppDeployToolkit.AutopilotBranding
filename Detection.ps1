@@ -1,7 +1,7 @@
 
 <#PSScriptInfo
 
-.VERSION 2.8
+.VERSION 2.9
 
 .GUID 21bf030b-ee87-4619-899a-7c080fe5fbfe
 
@@ -9,23 +9,7 @@
 
 .COMPANYNAME The Missing Link Network Integration Pty Ltd
 
-.COPYRIGHT Copyright (C) 2023 The Missing Link Network Integration Pty Ltd. All rights reserved.
-
-.TAGS
-
-.LICENSEURI
-
-.PROJECTURI
-
-.ICONURI
-
-.EXTERNALMODULEDEPENDENCIES
-
-.REQUIREDSCRIPTS
-
-.EXTERNALSCRIPTDEPENDENCIES
-
-.RELEASENOTES
+.COPYRIGHT Copyright (C) 2024 The Missing Link Network Integration Pty Ltd. All rights reserved.
 
 #>
 
@@ -41,11 +25,8 @@ $scrVer = (Test-ScriptFileInfo -LiteralPath "$Env:SystemRoot\system32\Invoke-Des
 $minVer = (Test-ScriptFileInfo -LiteralPath $MyInvocation.MyCommand.Source -ErrorAction Stop).Version
 
 # Check whether script is the minimum version.
-if ($scrVer -ge $minVer)
-{
-	Write-Host "Product detected successfully."
-}
-else
+if ($scrVer -lt $minVer)
 {
 	throw "Unable to detect product."
 }
+Write-Host "Product detected successfully."

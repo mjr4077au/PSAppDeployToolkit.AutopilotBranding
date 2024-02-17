@@ -3,30 +3,13 @@
 
 .VERSION 1.0
 
-.GUID c2f10730-e9d4-45e3-b6fa-3f0ddfc40f78
+.GUID 84090e0e-c3ae-445a-b9b4-51f79355abab
 
 .AUTHOR Mitch Richters (mrichters@themissinglink.com.au).
 
 .COMPANYNAME The Missing Link Network Integration Pty Ltd
 
-.COPYRIGHT Copyright (C) 2023 The Missing Link Network Integration Pty Ltd. All rights reserved.
-
-.TAGS
-
-.LICENSEURI
-
-.PROJECTURI
-
-.ICONURI
-
-.EXTERNALMODULEDEPENDENCIES
-
-.REQUIREDSCRIPTS
-
-.EXTERNALSCRIPTDEPENDENCIES
-
-.RELEASENOTES
-- Initial release.
+.COPYRIGHT Copyright (C) 2024 The Missing Link Network Integration Pty Ltd. All rights reserved.
 
 #>
 
@@ -34,6 +17,12 @@
 
 .DESCRIPTION
 This script install/removes/validates Desired State within a PC, wrapping around Invoke-DesiredStateManagementOperation.ps1.
+
+.NOTES
+**Changelog**
+
+1.0
+- Initial release.
 
 #>
 

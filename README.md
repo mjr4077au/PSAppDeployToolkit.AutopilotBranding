@@ -2,7 +2,7 @@
 Inspired by Michael Niehaus' "AutopilotBranding" toolkit, this toolkit is specifically designed to be used to install a set of system baseline defaults for workstations, extending from languages, removal of built-in apps/features, user defaults via Active Setup, and more.
 
 ## Capabilities
-These customizations are currently supported:
+These customisations are currently supported:
 
 - Transfer of content to device. This can be wallpapers, start menu layouts, scripts, or anything you need cached locally.
 - Configuration of Registration Information (Name/Organisation you see when running `winver.exe`).
@@ -21,7 +21,7 @@ These customizations are currently supported:
 - Ability to enable/disable Windows Features. Such items are Windows PowerShell 2.0 engine, Telnet client, etc.
 
 ## Requirements and Dependencies
-This script depends on TMLSTL v5.3 or greater. Please ensure the latest version of the module is deployed prior to executing this script. TMLSTL can be downloaded from: https://github.com/TheMissingLinkGithub/TMLSTL/releases.
+This script depends on TMLSTL v5.5 or greater. Please ensure the latest version of the module is deployed prior to executing this script. TMLSTL can be downloaded from: https://github.com/TheMissingLinkGithub/TMLSTL/releases.
 
 This uses the Microsoft Win32 Content Prep Tool (a.k.a. IntuneWinAppUtil.exe, available from https://github.com/Microsoft/Microsoft-Win32-Content-Prep-Tool) to package the PowerShell script and related files into a .intunewin file that can be uploaded to Intune as a Win32 app.
 
