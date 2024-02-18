@@ -84,8 +84,8 @@ $config = @"
 	<SystemDriveLockdown Enabled="1"/>
 	<DefaultStartLayout>DefaultLayouts.xml</DefaultStartLayout>
 	<DefaultLayoutModification>
-		<Taskbar>file.xml</Taskbar>
-		<StartMenu>file.json</StartMenu>
+		<Taskbar>LayoutModification.xml</Taskbar>
+		<StartMenu>LayoutModification.json</StartMenu>
 	</DefaultLayoutModification>
 	<DefaultAppAssociations>DefaultAssociations.xml</DefaultAppAssociations>
 	<LanguageDefaults>LanguageUnattend.xml</LanguageDefaults>
