@@ -603,35 +603,37 @@ DynamicParam
 	Set-PSDebug -Strict
 	Set-StrictMode -Version Latest
 
-	# Add additional parameters if we're not removing the toolkit and the config specifies content without a source.
-	if (!$Uninstall -and $xml.Config.ChildNodes.LocalName.Contains('Content') -and !$xml.Config.Content.ChildNodes.LocalName.Contains('Source'))
+	# Add additional parameters only if we're not removing the toolkit and the config specifies content without a source.
+	if ($Uninstall -or !$xml.Config.ChildNodes.LocalName.Contains('Content') -or $xml.Config.Content.ChildNodes.LocalName.Contains('Source'))
 	{
-		# Define parameter dictionary for returning at the end.
-		$paramDictionary = [System.Management.Automation.RuntimeDefinedParameterDictionary]::new()
+		return
+	}
 
-		# Add $ContentPath only for installations.
-		if ($Install)
-		{
-			$paramDictionary.Add('ContentPath', [System.Management.Automation.RuntimeDefinedParameter]::new(
-				'ContentPath', [System.String], [System.Collections.Generic.List[System.Attribute]]@(
-					[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Install'; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
-					[System.Management.Automation.ValidateScriptAttribute]::new({[System.IO.Directory]::Exists($_) -and !!(Get-ChildItem -LiteralPath $_)})
-				)
-			))
-		}
+	# Define parameter dictionary for returning at the end.
+	$paramDictionary = [System.Management.Automation.RuntimeDefinedParameterDictionary]::new()
 
-		# Add $DataMap all non-uninstall operations.
-		$paramDictionary.Add('DataMap', [System.Management.Automation.RuntimeDefinedParameter]::new(
-			'DataMap', [System.Collections.IDictionary], [System.Collections.Generic.List[System.Attribute]]@(
-				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Install'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
-				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Confirm'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
-				[System.Management.Automation.ValidateScriptAttribute]::new({!!$_.Count})
+	# Add $ContentPath only for installations.
+	if ($Install)
+	{
+		$paramDictionary.Add('ContentPath', [System.Management.Automation.RuntimeDefinedParameter]::new(
+			'ContentPath', [System.String], [System.Collections.Generic.List[System.Attribute]]@(
+				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Install'; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
+				[System.Management.Automation.ValidateScriptAttribute]::new({[System.IO.Directory]::Exists($_) -and !!(Get-ChildItem -LiteralPath $_)})
 			)
 		))
-
-		# Return the populated dictionary.
-		return $paramDictionary
 	}
+
+	# Add $DataMap all non-uninstall operations.
+	$paramDictionary.Add('DataMap', [System.Management.Automation.RuntimeDefinedParameter]::new(
+		'DataMap', [System.Collections.IDictionary], [System.Collections.Generic.List[System.Attribute]]@(
+			[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Install'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
+			[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Confirm'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
+			[System.Management.Automation.ValidateScriptAttribute]::new({!!$_.Count})
+		)
+	))
+
+	# Return the populated dictionary.
+	return $paramDictionary
 }
 
 begin
