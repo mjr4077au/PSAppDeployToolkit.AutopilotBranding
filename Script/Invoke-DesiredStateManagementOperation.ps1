@@ -874,8 +874,9 @@ begin
 		$data = Initialize-ModuleData
 
 		# Dynamically generate and invoke scriptblocks based on the XML config and what this script supports.
-		$div = if ($Action.Equals('Install')) {"; Write-LogDivider"}
-		$res = $xml.Config.ChildNodes.LocalName.ForEach({[scriptblock]::Create("$Action-$_$div")}).InvokeReturnAsIs() -join "`n"
+		$res = [System.String]::Join("`n", $xml.Config.ChildNodes.LocalName.ForEach({
+			& "$Action-$_"; if ($Action.Equals('Install')) {Write-LogDivider}
+		}))
 
 		# Release the WScript.Shell COM object.
 		[System.Void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($wsShell)
