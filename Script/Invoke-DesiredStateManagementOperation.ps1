@@ -1081,7 +1081,7 @@ begin
 			}
 			{$_ -gt 0} {
 				# Add content to system's path environment variable, as well as our dedicated variable.
-				Set-SystemPathVariable -NewValue ([System.String]::Join(';', @($data.Content.Destination) + (Get-EnvironmentVariableValue -Variable Path -Target Machine).Split(';')))
+				Set-SystemPathVariable -NewValue "$($data.Content.Destination);$(Get-EnvironmentVariableValue -Variable Path -Target Machine)"
 				[System.Environment]::SetEnvironmentVariable($xml.Config.Content.EnvironmentVariable, $data.Content.Destination, 'Machine')
 				Write-LogEntry -Message "Successfully installed Content environment variable."
 			}
