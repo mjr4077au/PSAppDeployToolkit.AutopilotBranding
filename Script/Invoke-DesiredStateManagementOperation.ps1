@@ -1,7 +1,7 @@
 ﻿
 <#PSScriptInfo
 
-.VERSION 2.9
+.VERSION 2.10
 
 .GUID dd1fb415-b54e-4773-938c-5c575c335bbd
 
@@ -137,6 +137,13 @@ stderr stream. Invoke-DesiredStateManagementOperation.ps1 writes all error text 
 
 .NOTES
 **Changelog**
+
+2.10
+- Fix inconsistent verb usage throughout toolkit.
+- Amend some gargage data in sample wrapper contents.
+- Simplify Contnet path variable amendment.
+- Prefer the call operator over `.InvokeReturnAsIs()`.
+- Optimsie the dynamicparams block.
 
 2.9
 - Optimise output check in script's main catch block.
