@@ -9,7 +9,7 @@ This script sits over the top of Install-DesiredStateManagement.ps1 by providing
 The Missing Link
 1.0
 
-%windir%\sysnative\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -NoProfile -File Install-DesiredStateManagement.ps1 -Install
-%windir%\sysnative\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -NoProfile -File Install-DesiredStateManagement.ps1 -Remove
+%windir%\sysnative\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -NonInteractive -NoProfile -File Install-DesiredStateManagement.ps1 -Install
+%windir%\sysnative\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -NonInteractive -NoProfile -File Install-DesiredStateManagement.ps1 -Uninstall
 
 Determine behaviour based on return codes.

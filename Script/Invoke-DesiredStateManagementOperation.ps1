@@ -16,7 +16,7 @@
 <#
 
 .SYNOPSIS
-Installs a preconfigured list of system defaults, validates them or removes them as required.
+Installs a preconfigured list of system defaults, validates them or uninstalls them as required.
 
 .DESCRIPTION
 Inspired by Michael Niehaus' "AutopilotBranding" toolkit, this script is specifically designed to be used to install a set of system baseline defaults for workstations, extending from languages, removal of built-in apps/features, user defaults via Active Setup, and more.
@@ -80,7 +80,7 @@ An example setup via an XML configuration file would be:
 		<App>Microsoft.GetHelp</App>
 	</RemoveApps>
 	<WindowsCapabilities>
-		<Capability Action="Install">NetFX3~~~~</Capability>
+		<Capability Action="Add">NetFX3~~~~</Capability>
 		<Capability Action="Remove">App.Support.QuickAssist~~~~0.0.1.0</Capability>
 		<Capability Action="Remove">Browser.InternetExplorer~~~~0.0.11.0</Capability>
 	</WindowsCapabilities>
@@ -98,8 +98,8 @@ CmdletBinding() is specified on the script and can be called with all supported 
 .PARAMETER Install
 Instructs the script to install missing defaults as per the supplied configuration.
 
-.PARAMETER Remove
-Instructs the script to remove installed defaults as per the supplied configuration.
+.PARAMETER Uninstall
+Instructs the script to uninstall changed defaults as per the supplied configuration.
 
 .PARAMETER Discriminator
 Specifies an extra identifier for logging purposes, such as country or region.
@@ -120,7 +120,7 @@ powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File 
 powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Invoke-DesiredStateManagementOperation.ps1 -Install
 
 .EXAMPLE
-powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Invoke-DesiredStateManagementOperation.ps1 -Remove
+powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Invoke-DesiredStateManagementOperation.ps1 -Uninstall
 
 .EXAMPLE
 powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -NonInteractive -File Invoke-DesiredStateManagementOperation.ps1 -Mode Install
@@ -186,11 +186,11 @@ stderr stream. Invoke-DesiredStateManagementOperation.ps1 writes all error text 
 - Repair `Get-RegistryDataItemValue` to ensure the value is tested for null before trying to convert a binary array.
 - Cast path in `Get-SystemShortcutsFilePath` to [System.IO.FileInfo] so a proper object is returned.
 - Cleaned up log messages in `Install-RemoveApps`.
-- Cleaned up log messages in `Remove-RemoveAppProvisionment` and `Remove-RemoveAppInstallation`.
-- Cleaned up log messages in `Remove-ListedWindowsCapability` and `Install-ListedWindowsCapability`.
+- Cleaned up log messages in `Remove-AppProvisionment` and `Remove-AppInstallation`.
+- Cleaned up log messages in `Remove-ListedWindowsCapability` and `Add-ListedWindowsCapability`.
 - Cleaned up log messages in `Disable-ListedWindowsOptionalFeature` and `Enable-ListedWindowsOptionalFeature`.
 - Change all filters that call native executables to functions and give them a begin {} block to clear $LASTEXITCODE.
-- Rework `Remove-RegistryData` to test $LASTEXITCODE to determine whether a reboot is needed or not.
+- Rework `Uninstall-RegistryData` to test $LASTEXITCODE to determine whether a reboot is needed or not.
 - Use [Microsoft.Win32.Registry] accesses/setting where possible. Avoids nulling `Set-ItemProperty` and is faster.
 
 2.5
@@ -203,7 +203,7 @@ stderr stream. Invoke-DesiredStateManagementOperation.ps1 writes all error text 
 - Added `$Mode` argument to allow specifying mode based on a string rather than a switch.
 - Replace all `-join` operations with `[System.String]::Join()`, which is 2-3x faster.
 - Updated Content module to inject Content path into system's path variable.
-- Improve logging for `Remove-RegistryDataItem` which did not report its operations.
+- Improve logging for `Uninstall-RegistryDataItem` which did not report its operations.
 - Improve logging consistency for `Install-OemInformation` with rest of script.
 - Only perform a reboot if a module requires it rather than unconditionally.
 
@@ -248,7 +248,7 @@ stderr stream. Invoke-DesiredStateManagementOperation.ps1 writes all error text 
 - Repair issue with `Get-ActiveSetupState` `Mismatched` calculation that wasn't depending on correct properties.
 - Changed returns in `Test-DefaultStartLayoutValidity` to return 1 or higher on error, like other funcs.
 - Write validation output to StdErr instead of StdOut so that it's coloured and Intune Management Extension separates it correctly.
-- Reworked `Get-RemoveAppsState` and `Remove-RemoveAppInstallation` to be compatible with PowerShell 5.1 and 7.3.x.
+- Reworked `Get-RemoveAppsState` and `Remove-AppInstallation` to be compatible with PowerShell 5.1 and 7.3.x.
 - Re-write `Get-ItemPropertyUnexpanded` to take better advantage of `.ForEach()` method of incoming object.
 - Clean up internals of `Get-OemInformationIncorrectChildNodes`.
 - Removed needless quoting of variables passed to binary executables.
@@ -267,14 +267,14 @@ stderr stream. Invoke-DesiredStateManagementOperation.ps1 writes all error text 
 - Consolidated some uses of Where with ForEach by just doing a branch check in the ForEach block.
 - Replace all -eq/-ne with .Equals() method calls. It's faster and also will hard stop on null data for better error checking.
 - Changed casts of native cmdlets to `Out-Null` for legibility, only use casts for native binaries.
-- Removed `$Action` parameter from `Remove-ActiveSetupComponent` that was remaining after copy-pasting `Install-ActiveSetupComponent`.
-- Slightly tidied up `Remove-DefaultTheme` and `Get-ContentFilePath`.
+- Removed `$Action` parameter from `Uninstall-ActiveSetupComponent` that was remaining after copy-pasting `Install-ActiveSetupComponent`.
+- Slightly tidied up `Uninstall-DefaultTheme` and `Get-ContentFilePath`.
 - Added missed error handling to `Invoke-ContentPreOps` to match other module pre-op functions.
 - Partially re-wrote `Test-ContentValidity` for greater clarity.
 - Use `Test-Path` in place of silencing errors where suited.
 - Add heading that was missing for DefaultStartLayout code segment.
 - Added better handling of obtaining default user profile locations from the registry vs. hard-coded paths.
-- Improve logic used in `Remove-DefaultStartLayout` function.
+- Improve logic used in `Uninstall-DefaultStartLayout` function.
 - Fixed state detection issue in `OemInformation` section.
 
 2.1
@@ -301,17 +301,17 @@ Param
 	[Parameter(Mandatory = $true, ParameterSetName = 'Install', HelpMessage = "Instructs the script to install the Desired State Management config.")]
 	[System.Management.Automation.SwitchParameter]$Install,
 
-	[Parameter(Mandatory = $true, ParameterSetName = 'Remove', HelpMessage = "Instructs the script to remove the Desired State Management config.")]
-	[System.Management.Automation.SwitchParameter]$Remove,
+	[Parameter(Mandatory = $true, ParameterSetName = 'Uninstall', HelpMessage = "Instructs the script to uninstall the Desired State Management config.")]
+	[System.Management.Automation.SwitchParameter]$Uninstall,
 
 	[Parameter(Mandatory = $false, ParameterSetName = 'Install', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
-	[Parameter(Mandatory = $false, ParameterSetName = 'Remove', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
+	[Parameter(Mandatory = $false, ParameterSetName = 'Uninstall', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
 	[Parameter(Mandatory = $false, ParameterSetName = 'Confirm', HelpMessage = "Provides a unique log filename identifier for layered/inherited deployments.")]
 	[ValidateNotNullOrEmpty()]
 	[System.String]$Discriminator,
 
 	[Parameter(Mandatory = $true, ParameterSetName = 'Install', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
-	[Parameter(Mandatory = $true, ParameterSetName = 'Remove', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
+	[Parameter(Mandatory = $true, ParameterSetName = 'Uninstall', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
 	[Parameter(Mandatory = $true, ParameterSetName = 'Confirm', HelpMessage = "Provide the path/URI to the config, or raw XML input.")]
 	[ValidateScript({
 		# Open a new XML document and add out schema.
@@ -415,9 +415,9 @@ Param
 					</xs:restriction>
 				</xs:simpleType>
 
-				<xs:simpleType name="baseInstallRemove">
+				<xs:simpleType name="baseAddRemove">
 					<xs:restriction base="xs:string">
-						<xs:pattern value="^(Install|Remove)$"/>
+						<xs:pattern value="^(Add|Remove)$"/>
 					</xs:restriction>
 				</xs:simpleType>
 
@@ -556,7 +556,7 @@ Param
 											<xs:complexType>
 												<xs:simpleContent>
 													<xs:extension base="baseStandardString">
-														<xs:attribute name="Action" use="required" type="baseInstallRemove"/>
+														<xs:attribute name="Action" use="required" type="baseAddRemove"/>
 													</xs:extension>
 												</xs:simpleContent>
 											</xs:complexType>
@@ -604,7 +604,7 @@ DynamicParam
 	Set-StrictMode -Version Latest
 
 	# Add additional parameters if we're not removing the toolkit and the config specifies content without a source.
-	if (!$Remove -and $xml.Config.ChildNodes.LocalName.Contains('Content') -and !$xml.Config.Content.ChildNodes.LocalName.Contains('Source'))
+	if (!$Uninstall -and $xml.Config.ChildNodes.LocalName.Contains('Content') -and !$xml.Config.Content.ChildNodes.LocalName.Contains('Source'))
 	{
 		# Define parameter dictionary for returning at the end.
 		$paramDictionary = [System.Management.Automation.RuntimeDefinedParameterDictionary]::new()
@@ -620,7 +620,7 @@ DynamicParam
 			))
 		}
 
-		# Add $DataMap all non-remove operations.
+		# Add $DataMap all non-uninstall operations.
 		$paramDictionary.Add('DataMap', [System.Management.Automation.RuntimeDefinedParameter]::new(
 			'DataMap', [System.Collections.IDictionary], [System.Collections.Generic.List[System.Attribute]]@(
 				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Install'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
@@ -670,7 +670,7 @@ begin
 		}
 	}
 
-	function Remove-RegistryDataItem
+	function Uninstall-RegistryDataItem
 	{
 		begin {
 			# Reset the global exit code before starting.
@@ -678,15 +678,15 @@ begin
 		}
 
 		process {
-			# Remove item.
+			# Uninstall item.
 			[System.Void](reg.exe DELETE ($key = $_.Key) /v $_.Name /f 2>&1)
-			Write-LogEntry -Message "Removed registry value '$key\$($_.Name)'."
+			Write-LogEntry -Message "Uninstalled registry value '$key\$($_.Name)'."
 
-			# Remove key and any parents if there's no objects left within it.
+			# Uninstall key and any parents if there's no objects left within it.
 			while ([System.String]::IsNullOrWhiteSpace($(try {reg.exe QUERY $key 2>&1} catch {$_.Exception.Message})))
 			{
 				[System.Void](reg.exe DELETE $key /f 2>&1); $key = $key -replace '\\[^\\]+$'
-				Write-LogEntry -Message "Removed empty registry key '$key'."
+				Write-LogEntry -Message "Uninstalled empty registry key '$key'."
 			}
 		}
 	}
@@ -945,10 +945,10 @@ begin
 		}
 	}
 
-	filter Remove-ActiveSetupComponent
+	filter Uninstall-ActiveSetupComponent
 	{
 		$_ | Remove-Item -Force -Confirm:$false
-		Write-LogEntry -Message "Removed deprecated ActiveSetup component '$($_.PSChildName)'."
+		Write-LogEntry -Message "Uninstalled deprecated ActiveSetup component '$($_.PSChildName)'."
 	}
 
 	function Install-ActiveSetup
@@ -959,7 +959,7 @@ begin
 		# Rectify state if needed.
 		if (($components = Get-ActiveSetupState).PSObject.Properties.Where({$_.Value}))
 		{
-			$components.Deprecated | Remove-ActiveSetupComponent
+			$components.Deprecated | Uninstall-ActiveSetupComponent
 			$components.Mismatched | Install-ActiveSetupComponent -Action Update
 			$components.NotPresent | Install-ActiveSetupComponent -Action Install
 			Write-LogEntry -Message "Successfully installed all ActiveSetup components."
@@ -993,11 +993,11 @@ begin
 		}
 	}
 
-	function Remove-ActiveSetup
+	function Uninstall-ActiveSetup
 	{
-		# Remove all items.
+		# Uninstall all items.
 		Remove-Item -Path "$($data.ActiveSetup.RegistryBase)\$($xml.Config.ActiveSetup.Identifier)*" -Force -Confirm:$false
-		Write-LogEntry -Message "Successfully removed all ActiveSetup components."
+		Write-LogEntry -Message "Successfully uninstalled all ActiveSetup components."
 	}
 
 
@@ -1106,15 +1106,15 @@ begin
 		}
 	}
 
-	function Remove-Content
+	function Uninstall-Content
 	{
 		# Store expanded destination and delete the contents folder.
 		Remove-ItemsAndEmptyDirectory -LiteralPath ($dest = [System.Environment]::ExpandEnvironmentVariables($xml.Config.Content.Destination)) -Verbose 4>&1 | Send-VerboseRecordsToLog
 
-		# Remove all references to the destination from the system's environment variables.
+		# Uninstall all references to the destination from the system's environment variables.
 		Set-SystemPathVariable -NewValue ([System.String]::Join(';', (Get-EnvironmentVariableValue -Variable Path -Target Machine).Split(';').Where({!$_.Equals($dest)})))
 		[System.Environment]::SetEnvironmentVariable($xml.Config.Content.EnvironmentVariable, $null, 'Machine')
-		Write-LogEntry -Message "Successfully removed all Content components."
+		Write-LogEntry -Message "Successfully uninstalled all Content components."
 	}
 
 
@@ -1185,10 +1185,10 @@ begin
 		}
 	}
 
-	function Remove-DefaultAppAssociations
+	function Uninstall-DefaultAppAssociations
 	{
 		Remove-Item -LiteralPath $data.DefaultAppAssociations.TagFile -Force -Confirm:$false -ErrorAction Ignore
-		Write-LogEntry -Message "Successfully removed DefaultAppAssociations tag file."
+		Write-LogEntry -Message "Successfully uninstalled DefaultAppAssociations tag file."
 	}
 
 
@@ -1267,7 +1267,7 @@ begin
 		}
 	}
 
-	function Remove-DefaultStartLayout
+	function Uninstall-DefaultStartLayout
 	{
 		# Get oldest backup.
 		$backup = Get-ChildItem -Path "$($data.DefaultStartLayout.BaseDirectory)\*.backup" |
@@ -1371,9 +1371,9 @@ begin
 		}
 	}
 
-	function Remove-DefaultLayoutModification
+	function Uninstall-DefaultLayoutModification
 	{
-		# Remove the file completely.
+		# Uninstall the file completely.
 		Remove-Item -Path "$($data.DefaultLayoutModification.BaseDirectory)\LayoutModification.*" -Force -Confirm:$false
 		Write-LogEntry -Message "Successfully restored DefaultLayoutModification configuration."
 	}
@@ -1444,11 +1444,11 @@ begin
 		}
 	}
 
-	function Remove-DefaultTheme
+	function Uninstall-DefaultTheme
 	{
 		# Just remove the registry components so we don't risk breaking user experiences.
-		Invoke-DefaultUserRegistryAction -Expression {($data.DefaultTheme | Where-Object {$_ | Get-RegistryDataItemValue} | Remove-RegistryDataItem) 6>$null} | Out-Null
-		Write-LogEntry -Message "Successfully removed all DefaultTheme registry components."
+		Invoke-DefaultUserRegistryAction -Expression {($data.DefaultTheme | Where-Object {$_ | Get-RegistryDataItemValue} | Uninstall-RegistryDataItem) 6>$null} | Out-Null
+		Write-LogEntry -Message "Successfully uninstalled all DefaultTheme registry components."
 	}
 
 
@@ -1519,10 +1519,10 @@ begin
 		}
 	}
 
-	function Remove-LanguageDefaults
+	function Uninstall-LanguageDefaults
 	{
 		Remove-Item -LiteralPath $data.LanguageDefaults.TagFile -Force -Confirm:$false -ErrorAction Ignore
-		Write-LogEntry -Message "Successfully removed LanguageDefaults tag file."
+		Write-LogEntry -Message "Successfully uninstalled LanguageDefaults tag file."
 	}
 
 
@@ -1605,10 +1605,10 @@ begin
 		}
 	}
 
-	function Remove-OemInformation
+	function Uninstall-OemInformation
 	{
 		Remove-Item -LiteralPath $data.OemInformation.RegistryBase -Force -Confirm:$false -ErrorAction Ignore
-		Write-LogEntry -Message "Successfully removed all OemInformation values."
+		Write-LogEntry -Message "Successfully uninstalled all OemInformation values."
 	}
 
 
@@ -1660,11 +1660,11 @@ begin
 		}
 	}
 
-	function Remove-RegistrationInfo
+	function Uninstall-RegistrationInfo
 	{
 		$ripParams = @{LiteralPath = $data.RegistrationInfo.RegistryBase; Name = $xml.Config.RegistrationInfo.ChildNodes.LocalName}
 		Remove-ItemProperty @ripParams -Force -Confirm:$false -ErrorAction Ignore
-		Write-LogEntry -Message "Successfully removed all RegistrationInfo values."
+		Write-LogEntry -Message "Successfully uninstalled all RegistrationInfo values."
 	}
 
 
@@ -1709,11 +1709,11 @@ begin
 		}
 	}
 
-	function Remove-RegistryData
+	function Uninstall-RegistryData
 	{
-		# Remove each item and the key if the item was the last.
-		if (($xml.Config.RegistryData.Item | Where-Object {$_ | Get-RegistryDataItemValue} | Remove-RegistryDataItem) 6>&1) {Update-ExitCode -Value 3010}
-		Write-LogEntry -Message "Successfully removed all RegistryData values."
+		# Uninstall each item and the key if the item was the last.
+		if (($xml.Config.RegistryData.Item | Where-Object {$_ | Get-RegistryDataItemValue} | Uninstall-RegistryDataItem) 6>&1) {Update-ExitCode -Value 3010}
+		Write-LogEntry -Message "Successfully uninstalled all RegistryData values."
 	}
 
 
@@ -1729,11 +1729,11 @@ begin
 			Installed = Get-AppxPackage -AllUsers | Where-Object {$xml.Config.RemoveApps.App -contains $_.Name} | ForEach-Object {
 				if ($data.RemoveApps.MandatoryApps -contains $_.Name)
 				{
-					Write-LogEntry -Message "Cannot uninstall app '$($_.Name)' as it is considered mandatory." -Warning -Prefix
+					Write-LogEntry -Message "Cannot remove app '$($_.Name)' as it is considered mandatory." -Warning -Prefix
 				}
 				elseif ($_.NonRemovable)
 				{
-					Write-LogEntry -Message "Cannot uninstall app '$($_.Name)' as it is flagged as non-removable by the system." -Warning -Prefix
+					Write-LogEntry -Message "Cannot remove app '$($_.Name)' as it is flagged as non-removable by the system." -Warning -Prefix
 				}
 				elseif ($_.PackageUserInformation.ForEach({$_.ToString()}) -match 'Installed$')
 				{
@@ -1753,14 +1753,14 @@ begin
 		}
 	}
 
-	filter Remove-RemoveAppInstallation
+	filter Remove-AppInstallation
 	{
 		# We deliberately don't use the `-AllUsers` parameter as it doesn't work.
 		$_ | Remove-AppxPackage
-		Write-LogEntry -Message "Uninstalled AppX package '$($_.Name)' for all users."
+		Write-LogEntry -Message "Removed AppX package '$($_.Name)' for all users."
 	}
 
-	filter Remove-RemoveAppProvisionment
+	filter Remove-AppProvisionment
 	{
 		$_ | Remove-AppxProvisionedPackage -AllUsers -Online | Out-Null
 		Write-LogEntry -Message "Deprovisioned AppX package '$($_.DisplayName)'."
@@ -1774,8 +1774,8 @@ begin
 		# Rectify state if needed.
 		if (($apps = Get-RemoveAppsState).PSObject.Properties.Where({$_.Value}))
 		{
-			$apps.Installed | Remove-RemoveAppInstallation
-			$apps.Provisioned | Remove-RemoveAppProvisionment
+			$apps.Installed | Remove-AppInstallation
+			$apps.Provisioned | Remove-AppProvisionment
 			Write-LogEntry -Message "Successfully processed RemoveApps list."
 			Update-ExitCode -Value 3010
 		}
@@ -1794,7 +1794,7 @@ begin
 		# Output test results.
 		if ($apps.Installed)
 		{
-			"The following apps in RemoveApps require uninstalling:$($apps.Installed.Name | ConvertTo-BulletedList)"
+			"The following apps in RemoveApps require removing:$($apps.Installed.Name | ConvertTo-BulletedList)"
 		}
 		if ($apps.Provisioned)
 		{
@@ -1802,9 +1802,9 @@ begin
 		}
 	}
 
-	function Remove-RemoveApps
+	function Uninstall-RemoveApps
 	{
-		Write-LogEntry -Message "Removal/reversal of RemoveApps configuration is not supported." -Warning -Prefix
+		Write-LogEntry -Message "Reversal of RemoveApps configuration is not supported." -Warning -Prefix
 	}
 
 
@@ -1875,13 +1875,13 @@ begin
 		}
 	}
 
-	function Remove-SystemDriveLockdown
+	function Uninstall-SystemDriveLockdown
 	{
 		if (!((icacls.exe $env:SystemDrive\ 2>&1) -match 'NT AUTHORITY\\Authenticated Users:(\(AD\)|\(OI\)\(CI\)\(IO\)\(M\))$').Count.Equals(2))
 		{
 			Restore-SystemDriveLockdownDefaults
 		}
-		Write-LogEntry -Message "Successfully removed SystemDriveLockdown tag file."
+		Write-LogEntry -Message "Successfully uninstalled SystemDriveLockdown tag file."
 	}
 
 
@@ -1989,11 +1989,11 @@ begin
 		}
 	}
 
-	function Remove-SystemShortcuts
+	function Uninstall-SystemShortcuts
 	{
-		# Remove each shortcut, ignoring errors as the shortcut might have already been removed.
+		# Uninstall each shortcut, ignoring errors as the shortcut might have already been removed.
 		$xml.Config.SystemShortcuts.Shortcut | Get-SystemShortcutsFilePath | Remove-Item -Force -Confirm:$false -ErrorAction Ignore
-		Write-LogEntry -Message "Successfully removed all SystemShortcuts."
+		Write-LogEntry -Message "Successfully uninstalled all SystemShortcuts."
 	}
 
 
@@ -2005,10 +2005,10 @@ begin
 
 	function Get-WindowsCapabilitiesState
 	{
-		# Get current system capabilities and install/remove data.
+		# Get current system capabilities and add/remove data.
 		$capabilities = Get-WindowsCapability -Online
 		$regexMatch = '^(Installed|InstallPending)$'
-		$toInstall = $xml.Config.WindowsCapabilities.Capability | Where-Object {$_.Action.Equals('Install')} | Select-Object -ExpandProperty '#text'
+		$toInstall = $xml.Config.WindowsCapabilities.Capability | Where-Object {$_.Action.Equals('Add')} | Select-Object -ExpandProperty '#text'
 		$toRemove = $xml.Config.WindowsCapabilities.Capability | Where-Object {$_.Action.Equals('Remove')} | Select-Object -ExpandProperty '#text'
 
 		# Get capability states and return to the pipeline.
@@ -2024,7 +2024,7 @@ begin
 		Write-LogEntry -Message "Removed Windows Capability '$($_.Name)'."
 	}
 
-	filter Install-ListedWindowsCapability
+	filter Add-ListedWindowsCapability
 	{
 		$_ | Add-WindowsCapability -Online | Out-Null
 		Write-LogEntry -Message "Added Windows Capability '$($_.Name)'."
@@ -2039,7 +2039,7 @@ begin
 		if (($capabilities = Get-WindowsCapabilitiesState).PSObject.Properties.Where({$_.Value}))
 		{
 			$capabilities.Installed | Remove-ListedWindowsCapability
-			$capabilities.Uninstalled | Install-ListedWindowsCapability
+			$capabilities.Uninstalled | Add-ListedWindowsCapability
 			Write-LogEntry -Message "Successfully processed WindowsCapabilities configuration."
 			Update-ExitCode -Value 3010
 		}
@@ -2058,15 +2058,15 @@ begin
 		# Output test results.
 		if ($capabilities.Installed)
 		{
-			"The following Windows Capabilities require uninstalling:$($capabilities.Installed.Name | ConvertTo-BulletedList)"
+			"The following Windows Capabilities require removing:$($capabilities.Installed.Name | ConvertTo-BulletedList)"
 		}
 		if ($capabilities.Uninstalled)
 		{
-			"The following Windows Capabilities require installing:$($capabilities.Uninstalled.Name | ConvertTo-BulletedList)"
+			"The following Windows Capabilities require adding:$($capabilities.Uninstalled.Name | ConvertTo-BulletedList)"
 		}
 	}
 
-	function Remove-WindowsCapabilities
+	function Uninstall-WindowsCapabilities
 	{
 		Write-LogEntry -Message "Removal/reversal of WindowsCapabilities configuration is not supported." -Warning -Prefix
 	}
@@ -2080,7 +2080,7 @@ begin
 
 	function Get-WindowsOptionalFeaturesState
 	{
-		# Get current system features and install/remove data.
+		# Get current system features and enable/disable data.
 		$features = Get-WindowsOptionalFeature -Online
 		$toEnable = $xml.Config.WindowsOptionalFeatures.Feature | Where-Object {$_.Action.Equals('Enable')} | Select-Object -ExpandProperty '#text'
 		$toDisable = $xml.Config.WindowsOptionalFeatures.Feature | Where-Object {$_.Action.Equals('Disable')} | Select-Object -ExpandProperty '#text'
@@ -2140,7 +2140,7 @@ begin
 		}
 	}
 
-	function Remove-WindowsOptionalFeatures
+	function Uninstall-WindowsOptionalFeatures
 	{
 		Write-LogEntry -Message "Removal/reversal of WindowsOptionalFeatures configuration is not supported." -Warning -Prefix
 	}

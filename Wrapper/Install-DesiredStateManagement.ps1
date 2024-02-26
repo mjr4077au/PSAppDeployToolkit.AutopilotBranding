@@ -31,8 +31,8 @@ Param (
 	[Parameter(Mandatory = $true, ParameterSetName = 'Install')]
 	[System.Management.Automation.SwitchParameter]$Install,
 
-	[Parameter(Mandatory = $true, ParameterSetName = 'Remove')]
-	[System.Management.Automation.SwitchParameter]$Remove
+	[Parameter(Mandatory = $true, ParameterSetName = 'Uninstall')]
+	[System.Management.Automation.SwitchParameter]$Uninstall
 )
 
 # Set required variables to ensure script functionality.
@@ -226,7 +226,7 @@ $config = @"
 
 # Set up parameters.
 if ($Install) {$PSBoundParameters.Add('ContentPath', "$PWD\Content")}
-if (!$Remove) {$PSBoundParameters.Add('DataMap', $dataMap)}
+if (!$Uninstall) {$PSBoundParameters.Add('DataMap', $dataMap)}
 
 # Call Invoke-DesiredStateManagementOperation.ps1 and do underlying operation.
 Invoke-DesiredStateManagementOperation.ps1 @PSBoundParameters -Config $config
