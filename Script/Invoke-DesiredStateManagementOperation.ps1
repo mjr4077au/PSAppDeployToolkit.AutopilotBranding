@@ -594,8 +594,14 @@ Param
 			</xs:schema>'
 		), $null))
 
-		# Load our file in, attempting as a URI first and then validate it before returning success.
-		$xml.Load($(try {[System.Xml.XmlReader]::Create($Config)} catch {[System.IO.StringReader]::new($Config)}))
+		# Try to parse the supplied config, attempting as a URI first.
+		if (!($cfg = $(try {[System.Xml.XmlReader]::Create($_)} catch {})))
+		{
+			$cfg = $(try {[System.IO.StringReader]::new($_)} catch {})
+		}
+
+		# Load our config in and then validate it before returning success.
+		$xml.Load($cfg)
 		$xml.Validate($null)
 		return $true
 	})]
