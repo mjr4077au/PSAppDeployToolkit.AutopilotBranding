@@ -1026,6 +1026,13 @@ begin
 	#
 	#---------------------------------------------------------------------------
 
+	[Flags()] enum ContentState
+	{
+		None = 0
+		EnvironmentVariable = 1
+		ContentValidity = 2
+	}
+
 	function Invoke-ContentPreOps
 	{
 		# Advise commencement.
@@ -1065,18 +1072,20 @@ begin
 	function Test-ContentValidity
 	{
 		# Store return value.
-		$exitCode = 0
+		$exitCode = [ContentState]::None
 
 		# Test we have an environment variable first.
 		if (!(Get-EnvironmentVariableValue -Variable $xml.Config.Content.EnvironmentVariable -Target Machine) -or
 			!(Get-EnvironmentVariableValue -Variable Path -Target Machine).Split(';').Contains($data.Content.Destination))
 		{
-			$exitCode += 1
+			$exitCode = $exitCode -bor [ContentState]::EnvironmentVariable
 		}
 
 		# Test the validity of the destination data.
-		$gifParams = @{LiteralPath = $data.Content.Destination; DataMap = $data.Content.DataMap}
-		$exitCode += 2 * !!$(try {Get-InvalidFiles @gifParams} catch {1})
+		if (!!$(try {Get-InvalidFiles -LiteralPath $data.Content.Destination -DataMap $data.Content.DataMap} catch {1}))
+		{
+			$exitCode = $exitCode -bor [ContentState]::ContentValidity
+		}
 
 		# Exit with results.
 		return $exitCode
@@ -1093,12 +1102,12 @@ begin
 		# Get state and repair if needed.
 		switch (Test-ContentValidity)
 		{
-			{$_ -gt 1} {
+			{$_ -band [ContentState]::ContentValidity} {
 				# Mirror our extracted folder with our destination using Robocopy.
 				Invoke-RobocopyTransfer -Source $data.Content.TemporaryDir -Destination $data.Content.Destination -Verbose 4>&1 | Send-VerboseRecordsToLog
 				Write-LogEntry -Message "Successfully installed Content files."
 			}
-			{$_ -gt 0} {
+			{$_ -band [ContentState]::EnvironmentVariable} {
 				# Add content to system's path environment variable, as well as our dedicated variable.
 				Set-SystemPathVariable -NewValue "$($data.Content.Destination);$(Get-EnvironmentVariableValue -Variable Path -Target Machine)"
 				[System.Environment]::SetEnvironmentVariable($xml.Config.Content.EnvironmentVariable, $data.Content.Destination, 'Machine')
@@ -1119,7 +1128,7 @@ begin
 		}
 
 		# Output incorrect results, if any.
-		if ($components = switch (Test-ContentValidity) {{$_ -gt 1} {'File data'} {$_ -gt 0} {'Environment variable'}})
+		if ($components = switch (Test-ContentValidity) {{$_ -band [ContentState]::ContentValidity} {'File data'} {$_ -band [ContentState]::EnvironmentVariable} {'Environment variable'}})
 		{
 			"The following Content components require installing or amending:$($components | ConvertTo-BulletedList)"
 		}
