@@ -1,7 +1,7 @@
 ﻿
 <#PSScriptInfo
 
-.VERSION 2.10.1
+.VERSION 2.10.2
 
 .GUID dd1fb415-b54e-4773-938c-5c575c335bbd
 
@@ -137,6 +137,9 @@ stderr stream. Invoke-DesiredStateManagementOperation.ps1 writes all error text 
 
 .NOTES
 **Changelog**
+
+2.10.2
+- Use proper bitfield for determining content state.
 
 2.10.1
 - Rework `-Config` `[ValidateScript()]` setup.
