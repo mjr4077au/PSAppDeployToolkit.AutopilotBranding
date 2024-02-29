@@ -636,20 +636,22 @@ DynamicParam
 	{
 		$paramDictionary.Add('ContentPath', [System.Management.Automation.RuntimeDefinedParameter]::new(
 			'ContentPath', [System.String], [System.Collections.Generic.List[System.Attribute]]@(
-				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Install'; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
+				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = $PSCmdlet.ParameterSetName; HelpMessage = 'Provide the path to Content source if not hosted on a web server.'}
 				[System.Management.Automation.ValidateScriptAttribute]::new({[System.IO.Directory]::Exists($_) -and !!(Get-ChildItem -LiteralPath $_)})
 			)
 		))
 	}
 
 	# Add $DataMap all non-uninstall operations.
-	$paramDictionary.Add('DataMap', [System.Management.Automation.RuntimeDefinedParameter]::new(
-		'DataMap', [System.Collections.IDictionary], [System.Collections.Generic.List[System.Attribute]]@(
-			[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Install'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
-			[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = 'Confirm'; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
-			[System.Management.Automation.ValidateScriptAttribute]::new({!!$_.Count})
-		)
-	))
+	if (!$Uninstall)
+	{
+		$paramDictionary.Add('DataMap', [System.Management.Automation.RuntimeDefinedParameter]::new(
+			'DataMap', [System.Collections.IDictionary], [System.Collections.Generic.List[System.Attribute]]@(
+				[System.Management.Automation.ParameterAttribute]@{Mandatory = $true; ParameterSetName = $PSCmdlet.ParameterSetName; HelpMessage = 'Provide the file/hash map to Content source if not hosted on a web server.'}
+				[System.Management.Automation.ValidateScriptAttribute]::new({!!$_.Count})
+			)
+		))
+	}
 
 	# Return the populated dictionary.
 	return $paramDictionary
